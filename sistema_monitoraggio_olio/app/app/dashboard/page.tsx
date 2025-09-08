@@ -130,10 +130,12 @@ async function getDashboardStats() {
         alertCritici,
         verifichePending
       },
-      sentimentDistribution: sentimentDistribution.map(item => ({
-        sentiment: item.sentiment,
-        count: item._count.sentiment
-      })),
+      sentimentDistribution: sentimentDistribution.map(
+        (item: { sentiment: string; _count: { sentiment: number } }) => ({
+          sentiment: item.sentiment,
+          count: item._count.sentiment
+        })
+      ),
       trendGiornaliero
     };
 

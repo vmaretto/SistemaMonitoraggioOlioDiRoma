@@ -45,7 +45,7 @@ export class AwarioSyncService {
         return result;
       }
 
-      const keywordList = activeKeywords.map(k => k.keyword);
+      const keywordList = activeKeywords.map((k: { keyword: string }) => k.keyword);
       console.log(`📍 Keywords attive: ${keywordList.join(', ')}`);
 
       // 2. Recupera menzioni da Awario (ultimi 7 giorni)

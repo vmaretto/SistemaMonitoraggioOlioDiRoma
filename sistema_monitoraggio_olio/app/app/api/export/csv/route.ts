@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       const headers = ['Data', 'Fonte', 'Piattaforma', 'Testo', 'Autore', 'Sentiment', 'Score', 'Keywords', 'Rilevanza'];
       csvData = headers.join(',') + '\n';
       
-      contenuti.forEach(item => {
+      contenuti.forEach((item: any) => {
         const row = [
           item.dataPost.toISOString().split('T')[0],
           `"${item.fonte}"`,
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
       const headers = ['Data', 'Testo OCR', 'Risultato', 'Match %', 'Violazioni', 'Stato', 'Note'];
       csvData = headers.join(',') + '\n';
       
-      verifiche.forEach(item => {
+      verifiche.forEach((item: any) => {
         const row = [
           item.createdAt.toISOString().split('T')[0],
           `"${item.testoOcr?.replace(/"/g, '""') || ''}"`,
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
       const headers = ['Data', 'Tipo', 'Priorità', 'Titolo', 'Descrizione', 'Stato', 'Data Risoluzione'];
       csvData = headers.join(',') + '\n';
       
-      alerts.forEach(item => {
+      alerts.forEach((item: any) => {
         const row = [
           item.createdAt.toISOString().split('T')[0],
           `"${item.tipo}"`,

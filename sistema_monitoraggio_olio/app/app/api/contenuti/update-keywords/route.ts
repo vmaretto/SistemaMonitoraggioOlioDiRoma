@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       select: { keyword: true }
     });
 
-    const keywordList = activeKeywords.map(k => k.keyword);
+    const keywordList = activeKeywords.map((k: { keyword: string }) => k.keyword);
 
     if (keywordList.length === 0) {
       return NextResponse.json({ 
@@ -154,7 +154,7 @@ export async function PUT(request: NextRequest) {
       select: { keyword: true }
     });
 
-    const keywordList = activeKeywords.map(k => k.keyword);
+    const keywordList = activeKeywords.map((k: { keyword: string }) => k.keyword);
     
     try {
       // Prova prima con AI

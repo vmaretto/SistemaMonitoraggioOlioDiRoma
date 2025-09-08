@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       contenuti,
-      activeKeywords: activeKeywords.map(k => k.keyword),
+      activeKeywords: activeKeywords.map((k: { keyword: string }) => k.keyword),
       total: totalCount,
       pagination: {
         page,
