@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       where: { isActive: true },
       select: { keyword: true }
     });
-    const keywordList = activeKeywords.map(k => k.keyword);
+    const keywordList = activeKeywords.map((k: { keyword: string }) => k.keyword);
 
     const results: any = {
       input: {
