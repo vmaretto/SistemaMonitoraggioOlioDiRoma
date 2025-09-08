@@ -1,0 +1,154 @@
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+    output = "/home/ubuntu/sistema_monitoraggio_olio/app/node_modules/.prisma/client"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  password      String?
+  emailVerified DateTime?
+  image         String?
+  role          String    @default("user")
+  organization  String?
+  accounts      Account[]
+  sessions      Session[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Keywords {
+  id        String   @id @default(cuid())
+  keyword   String   @unique
+  category  String   @default("primary") // primary, secondary, competitor
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ContenutiMonitorati {
+  id            String   @id @default(cuid())
+  fonte         String   // social, blog, ecommerce, news
+  piattaforma   String   // facebook, twitter, amazon, google, etc
+  testo         String   @db.Text
+  url           String?
+  autore        String?
+  sentiment     String   // positivo, neutro, negativo
+  sentimentScore Float   @default(0) // -1 a +1
+  keywords      String[] // array delle keyword trovate
+  dataPost      DateTime
+  rilevanza     Int      @default(0) // 0-100
+  isProcessed   Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model EtichetteUfficiali {
+  id                String   @id @default(cuid())
+  nome              String
+  descrizione       String?
+  imageUrl          String
+  cloudStoragePath  String?
+  testoOcr          String?  @db.Text
+  categoria         String   @default("ufficiale") // ufficiale, variante
+  denominazione     String   // DOP, IGP, etc
+  produttore        String?
+  regioneProduzione String   @default("Lazio")
+  isAttiva          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  verifiche         VerificheEtichette[]
+}
+
+model VerificheEtichette {
+  id                  String             @id @default(cuid())
+  imageUrl            String
+  cloudStoragePath    String?
+  testoOcr            String?            @db.Text
+  risultatoMatching   String             // conforme, non_conforme, sospetta
+  percentualeMatch    Float              @default(0) // 0-100
+  etichettaRiferimento String?
+  etichettaUfficiale  EtichetteUfficiali? @relation(fields: [etichettaRiferimento], references: [id])
+  violazioniRilevate  String[]           // array delle violazioni
+  note                String?            @db.Text
+  stato               String             @default("da_verificare") // da_verificare, verificata, archiviata
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+}
+
+model Alert {
+  id          String   @id @default(cuid())
+  tipo        String   // sentiment_negativo, etichetta_sospetta, picco_menzioni
+  priorita    String   @default("medio") // basso, medio, critico
+  titolo      String
+  descrizione String   @db.Text
+  fonte       String?  // id del contenuto o verifica che ha generato l'alert
+  isRisolto   Boolean  @default(false)
+  isNotificato Boolean @default(false)
+  dataRisolto DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Configurazioni {
+  id                    String   @id @default(cuid())
+  chiave                String   @unique
+  valore                String   @db.Text
+  descrizione           String?
+  categoria             String   @default("generale") // generale, monitoraggio, etichette, notifiche
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model LogNotifiche {
+  id          String   @id @default(cuid())
+  tipo        String   // email, sms, push
+  destinatario String
+  oggetto     String
+  corpo       String   @db.Text
+  stato       String   @default("inviata") // inviata, fallita, in_sospeso
+  alertId     String?
+  createdAt   DateTime @default(now())
+}
