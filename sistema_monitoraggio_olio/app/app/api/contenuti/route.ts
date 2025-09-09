@@ -58,23 +58,25 @@ export async function GET(request: NextRequest) {
       if (dateTo) where.dataPost.lte = new Date(dateTo);
     }
 
-    // Recupera i contenuti e le keywords attive
-    const [contenuti, totalCount, activeKeywords] = await Promise.all([
-      prisma.contenutiMonitorati.findMany({
-        where,
-        orderBy: [
-          { dataPost: 'desc' },
-          { rilevanza: 'desc' }
-        ],
-        skip,
-        take: limit
-      }),
-      prisma.contenutiMonitorati.count({ where }),
-      const activeKeywords: { keyword: string }[] = await prisma.keywords.findMany({
+    // Recupera prima le keyword attive
+const activeKeywords = await prisma.keywords.findMany({
   where: { isActive: true },
   select: { keyword: true }
 });
-    ]);
+
+// Poi recupera i contenuti e il conteggio totale
+const [contenuti, totalCount] = await Promise.all([
+  prisma.contenutiMonitorati.findMany({
+    where,
+    orderBy: [
+      { dataPost: 'desc' },
+      { rilevanza: 'desc' }
+    ],
+    skip,
+    take: limit
+  }),
+  prisma.contenutiMonitorati.count({ where })
+]);
 
     const totalPages = Math.ceil(totalCount / limit);
 
