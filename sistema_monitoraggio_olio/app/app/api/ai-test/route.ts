@@ -29,10 +29,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Recupera keywords attive per il test
-    const activeKeywords = await prisma.keywords.findMany({
-      where: { isActive: true },
-      select: { keyword: true }
-    });
+    const activeKeywords: { keyword: string }[] = await prisma.keywords.findMany({
+  where: { isActive: true },
+  select: { keyword: true },
+});
     const keywordList = activeKeywords.map((k: { keyword: string }) => k.keyword);
 
     const results: any = {
