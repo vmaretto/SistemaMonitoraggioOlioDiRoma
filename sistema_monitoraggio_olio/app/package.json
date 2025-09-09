@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "prisma": {
+    "schema": "prisma/schema.prisma",
     "seed": "tsx --require dotenv/config scripts/seed.ts"
   },
   "devDependencies": {
