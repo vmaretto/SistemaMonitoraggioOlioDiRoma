@@ -70,10 +70,10 @@ export async function GET(request: NextRequest) {
         take: limit
       }),
       prisma.contenutiMonitorati.count({ where }),
-      prisma.keywords.findMany({
-        where: { isActive: true },
-        select: { keyword: true }
-      })
+      const activeKeywords: { keyword: string }[] = await prisma.keywords.findMany({
+  where: { isActive: true },
+  select: { keyword: true }
+});
     ]);
 
     const totalPages = Math.ceil(totalCount / limit);
