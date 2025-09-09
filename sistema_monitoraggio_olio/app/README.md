@@ -3,20 +3,18 @@
 This project is configured for preview deployments on Vercel. The build is executed from the `sistema_monitoraggio_olio/app` directory.
 
 ## Environment variables
-Set the following variables in Vercel to run the application:
+Set these variables in Vercel for both Preview and Production builds:
 
 - DATABASE_URL
-- NEXTAUTH_SECRET
-- NEXTAUTH_URL
-- AWS_PROFILE
-- AWS_REGION
-- AWS_BUCKET_NAME
-- AWS_FOLDER_PREFIX
-- ABACUSAI_API_KEY
 - AWARIO_API_KEY
 - AWARIO_BASE_URL
 - CRON_SECRET
+- ABACUSAI_API_KEY
+- NEXTAUTH_SECRET
 
-Optional for restricted environments:
-
-- PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING
+## Deployment notes
+- Root Vercel: `sistema_monitoraggio_olio/`
+- Install command: `npm i --legacy-peer-deps`
+- Build command: `npm run build`
+- CI skips Prisma generate with `npm ci --ignore-scripts` and `PRISMA_SKIP_POSTINSTALL_GENERATE=1`; on Vercel the client is generated via `postinstall`
+- Optional: if the Prisma CDN returns 403 in Preview, set `PRISMA_ENGINES_MIRROR=https://prisma-builds.s3.us-east-1.amazonaws.com`
