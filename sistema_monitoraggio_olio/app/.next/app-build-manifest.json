@@ -11,10 +11,10 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/dashboard/page": [
+    "/dashboard/contenuti/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/page.js"
+      "static/chunks/app/dashboard/contenuti/page.js"
     ],
     "/dashboard/layout": [
       "static/chunks/webpack.js",
@@ -26,10 +26,10 @@
       "static/chunks/main-app.js",
       "static/chunks/app/auth/login/page.js"
     ],
-    "/dashboard/contenuti/page": [
+    "/_not-found/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/contenuti/page.js"
+      "static/chunks/app/_not-found/page.js"
     ]
   }
 }

@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     const fonte = searchParams.get('fonte');
     const search = searchParams.get('search'); // Ricerca generale nel testo
     const keywordFilter = searchParams.get('keyword'); // Filtro per keyword specifica
+    const dataType = searchParams.get('dataType'); // Filtro per tipo di dati (real/demo)
     const dateFrom = searchParams.get('dateFrom');
     const dateTo = searchParams.get('dateTo');
 
@@ -50,6 +51,27 @@ export async function GET(request: NextRequest) {
       where.keywords = {
         has: keywordFilter
       };
+    }
+
+    // Filtro per tipo di dati (real vs demo)
+    if (dataType && dataType !== 'all') {
+      if (dataType === 'real') {
+        // Dati reali: piattaforme che finiscono con '_real'
+        where.piattaforma = {
+          endsWith: '_real'
+        };
+      } else if (dataType === 'demo') {
+        // Dati demo: piattaforme che contengono 'demo' o sono legacy platforms senza '_real'
+        where.piattaforma = {
+          OR: [
+            { contains: 'demo' },
+            { equals: 'multiprovider' },
+            { equals: 'google_news' },
+            { equals: 'reddit' },
+            { equals: 'webzio' }
+          ]
+        };
+      }
     }
     
     if (dateFrom || dateTo) {

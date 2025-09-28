@@ -67,14 +67,26 @@ export const SOURCE_MAPPING: Record<string, string> = {
 } as const;
 
 /**
- * Mappa piattaforme per database
+ * Mappa piattaforme per database con indicatori real/demo
  */
 export const PLATFORM_MAPPING: Record<string, string> = {
-  'webzio': 'webzio',
-  'serpapi_google_news': 'google_news',
-  'serpapi:google_news': 'google_news',
-  'serpapi_reddit': 'reddit',
-  'serpapi:reddit': 'reddit'
+  'webzio': 'webzio_demo',
+  'serpapi_google_news': 'google_news_real',
+  'serpapi:google_news': 'google_news_real',
+  'serpapi_reddit': 'reddit_real',
+  'serpapi:reddit': 'reddit_real'
+} as const;
+
+/**
+ * Mappa nomi user-friendly delle piattaforme
+ */
+export const PLATFORM_DISPLAY_NAMES: Record<string, { name: string; type: 'real' | 'demo'; icon: string; color: string }> = {
+  'webzio_demo': { name: 'Webz.io Demo', type: 'demo', icon: '⚠️', color: 'bg-orange-100 text-orange-800' },
+  'google_news_real': { name: 'Google News', type: 'real', icon: '✅', color: 'bg-green-100 text-green-800' },
+  'reddit_real': { name: 'Reddit', type: 'real', icon: '✅', color: 'bg-green-100 text-green-800' },
+  'google_news': { name: 'Google News Demo', type: 'demo', icon: '⚠️', color: 'bg-orange-100 text-orange-800' },
+  'reddit': { name: 'Reddit Demo', type: 'demo', icon: '⚠️', color: 'bg-orange-100 text-orange-800' },
+  'webzio': { name: 'Webz.io Demo', type: 'demo', icon: '⚠️', color: 'bg-orange-100 text-orange-800' }
 } as const;
 
 /**
@@ -85,10 +97,14 @@ export function normalizeProviderItem(item: ProviderItem, sourceProvider: string
   const sentimentLabel = normalizeSentiment(item.sentiment?.label);
   const sentimentScore = item.sentiment?.score || 0;
   
+  // Determina se è real o demo basato sul successo della chiamata API
+  const isRealData = !item.raw?.__mock_data;
+  const platformKey = PLATFORM_MAPPING[sourceProvider] || sourceProvider;
+  
   return {
     // Campi database ContenutiMonitorati
     fonte: SOURCE_MAPPING[sourceProvider] || 'blog',
-    piattaforma: PLATFORM_MAPPING[sourceProvider] || sourceProvider,
+    piattaforma: isRealData ? platformKey : platformKey.replace('_real', '_demo').replace('_demo', '_demo'),
     testo: item.text || item.title || '',
     url: item.url,
     autore: item.author,

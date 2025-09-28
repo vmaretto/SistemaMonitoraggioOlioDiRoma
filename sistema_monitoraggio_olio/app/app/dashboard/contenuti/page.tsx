@@ -37,6 +37,7 @@ export default function ContenutiPage() {
   const [filterSentiment, setFilterSentiment] = useState('all');
   const [filterFonte, setFilterFonte] = useState('all');
   const [filterKeyword, setFilterKeyword] = useState('all');
+  const [filterDataType, setFilterDataType] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [providerStats, setProviderStats] = useState<any>(null);
@@ -51,7 +52,7 @@ export default function ContenutiPage() {
     fetchContenuti();
     fetchProviderStats();
     checkAiStatus();
-  }, [currentPage, filterSentiment, filterFonte, filterKeyword, searchTerm]);
+  }, [currentPage, filterSentiment, filterFonte, filterKeyword, filterDataType, searchTerm]);
 
   const fetchContenuti = async () => {
     try {
@@ -61,7 +62,8 @@ export default function ContenutiPage() {
         ...(searchTerm && { search: searchTerm }),
         ...(filterSentiment !== 'all' && { sentiment: filterSentiment }),
         ...(filterFonte !== 'all' && { fonte: filterFonte }),
-        ...(filterKeyword !== 'all' && { keyword: filterKeyword })
+        ...(filterKeyword !== 'all' && { keyword: filterKeyword }),
+        ...(filterDataType !== 'all' && { dataType: filterDataType })
       });
 
       const response = await fetch(`/api/contenuti?${params}`);
@@ -289,15 +291,24 @@ export default function ContenutiPage() {
     }
   };
 
-  const getPiattaformaIcon = (piattaforma: string) => {
-    switch (piattaforma.toLowerCase()) {
-      case 'facebook': return '📘';
-      case 'twitter': return '🐦';
-      case 'instagram': return '📷';
-      case 'amazon': return '📦';
-      case 'google': return '🔍';
-      default: return '🌐';
-    }
+  const getPlatformDisplay = (piattaforma: string) => {
+    // Import mapping inline per semplicità
+    const PLATFORM_DISPLAY_NAMES: Record<string, { name: string; type: 'real' | 'demo'; icon: string; color: string }> = {
+      'webzio_demo': { name: 'Webz.io Demo', type: 'demo', icon: '⚠️', color: 'bg-orange-100 text-orange-800' },
+      'google_news_real': { name: 'Google News', type: 'real', icon: '✅', color: 'bg-green-100 text-green-800' },
+      'reddit_real': { name: 'Reddit', type: 'real', icon: '✅', color: 'bg-green-100 text-green-800' },
+      'google_news': { name: 'Google News Demo', type: 'demo', icon: '⚠️', color: 'bg-orange-100 text-orange-800' },
+      'reddit': { name: 'Reddit Demo', type: 'demo', icon: '⚠️', color: 'bg-orange-100 text-orange-800' },
+      'webzio': { name: 'Webz.io Demo', type: 'demo', icon: '⚠️', color: 'bg-orange-100 text-orange-800' },
+      'multiprovider': { name: 'Multi-Provider Demo', type: 'demo', icon: '⚠️', color: 'bg-orange-100 text-orange-800' }
+    };
+    
+    return PLATFORM_DISPLAY_NAMES[piattaforma] || {
+      name: piattaforma,
+      type: 'demo',
+      icon: '🌐',
+      color: 'bg-gray-100 text-gray-800'
+    };
   };
 
   if (loading) {
@@ -335,7 +346,7 @@ export default function ContenutiPage() {
           <CardTitle className="text-lg">Filtri e Ricerca</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -347,7 +358,7 @@ export default function ContenutiPage() {
             </div>
             <Select value={filterSentiment} onValueChange={setFilterSentiment}>
               <SelectTrigger>
-                <SelectValue placeholder="Filtra per sentiment" />
+                <SelectValue placeholder="Sentiment" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tutti i sentiment</SelectItem>
@@ -358,7 +369,7 @@ export default function ContenutiPage() {
             </Select>
             <Select value={filterFonte} onValueChange={setFilterFonte}>
               <SelectTrigger>
-                <SelectValue placeholder="Filtra per fonte" />
+                <SelectValue placeholder="Fonte" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tutte le fonti</SelectItem>
@@ -368,9 +379,19 @@ export default function ContenutiPage() {
                 <SelectItem value="news">News</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={filterDataType} onValueChange={setFilterDataType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Tipo Dati" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti i dati</SelectItem>
+                <SelectItem value="real">✅ Dati Reali</SelectItem>
+                <SelectItem value="demo">⚠️ Dati Demo</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={filterKeyword} onValueChange={setFilterKeyword}>
               <SelectTrigger>
-                <SelectValue placeholder="Filtra per keyword" />
+                <SelectValue placeholder="Keywords" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tutte le keywords</SelectItem>
@@ -387,6 +408,7 @@ export default function ContenutiPage() {
                 setFilterSentiment('all');
                 setFilterFonte('all');
                 setFilterKeyword('all');
+                setFilterDataType('all');
                 setCurrentPage(1);
               }}
               variant="outline"
@@ -580,19 +602,23 @@ export default function ContenutiPage() {
             </CardContent>
           </Card>
         ) : (
-          contenuti.map((contenuto) => (
-            <Card key={contenuto.id}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-lg">{getPiattaformaIcon(contenuto.piattaforma)}</span>
-                    <Badge variant="outline">{contenuto.piattaforma}</Badge>
-                    <Badge variant="outline">{contenuto.fonte}</Badge>
-                    <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getSentimentColor(contenuto.sentiment)}`}>
-                      {getSentimentIcon(contenuto.sentiment)}
-                      <span>{contenuto.sentiment}</span>
+          contenuti.map((contenuto) => {
+            const platformInfo = getPlatformDisplay(contenuto.piattaforma);
+            return (
+              <Card key={contenuto.id}>
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-lg">{platformInfo.icon}</span>
+                      <Badge className={platformInfo.color}>
+                        {platformInfo.name}
+                      </Badge>
+                      <Badge variant="outline">{contenuto.fonte}</Badge>
+                      <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getSentimentColor(contenuto.sentiment)}`}>
+                        {getSentimentIcon(contenuto.sentiment)}
+                        <span>{contenuto.sentiment}</span>
+                      </div>
                     </div>
-                  </div>
                   <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                     <Calendar className="h-4 w-4" />
                     {format(new Date(contenuto.dataPost), 'PPp', { locale: it })}
@@ -627,7 +653,8 @@ export default function ContenutiPage() {
                 </div>
               </CardContent>
             </Card>
-          ))
+            );
+          })
         )}
       </div>
 
