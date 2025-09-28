@@ -19,7 +19,10 @@ import {
   Users,
   Database,
   BarChart3,
-  Globe
+  Globe,
+  ClipboardList,
+  Eye,
+  CheckCircle
 } from 'lucide-react';
 
 const sidebarItems = [
@@ -83,6 +86,27 @@ const sidebarItems = [
         title: 'Notifiche',
         href: '/dashboard/notifiche',
         icon: Bell,
+      },
+    ],
+  },
+  {
+    title: 'Tracciabilità Ispettori',
+    icon: ClipboardList,
+    items: [
+      {
+        title: 'Lista Report',
+        href: '/dashboard/reports',
+        icon: FileText,
+      },
+      {
+        title: 'In Verifica',
+        href: '/dashboard/reports?status=IN_CONTROLLO',
+        icon: Eye,
+      },
+      {
+        title: 'Completati',
+        href: '/dashboard/reports?status=CHIUSA',
+        icon: CheckCircle,
       },
     ],
   },
