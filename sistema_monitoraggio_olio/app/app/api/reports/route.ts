@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
               // Riferimento utente tramite actorId se necessario
             }
           },
-          _count: {
+_count: {
             select: {
               actions: true,
               attachments: true,
@@ -72,7 +72,13 @@ export async function GET(request: NextRequest) {
       createdAt: report.createdAt,
       createdById: report.createdById,
       lastAction: report.actions[0] || null,
-      counters: report._count,
+_count: {
+        actionLogs: report._count.actions || 0,
+        inspections: report._count.inspections || 0,
+        clarificationRequests: report._count.clarifications || 0,
+        authorityNotices: report._count.authorityNotices || 0,
+        attachments: report._count.attachments || 0
+      },
       updatedAt: report.updatedAt
     }));
 
