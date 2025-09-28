@@ -1,0 +1,202 @@
+Obiettivo
+Integra SerpApi come ulteriore sorgente di ascolto (Google News + Reddit) accanto a Webz.io.
+Requisiti:
+provider multipli selezionabili per profilo (es. webzio, serpapi:google_news, serpapi:reddit)
+stesso schema NormalizedMention già usato
+paginazione/limiti rispettati
+mock mode per entrambi i provider quando mancano le key
+1) Env & deps
+Aggiorna .env.example:
+WEBZIO_TOKEN=
+WEBZIO_BASE_URL=https://api.webz.io/filterWebContent
+
+SERPAPI_KEY=
+SERPAPI_BASE_URL=https://serpapi.com/search.json
+
+WEBZIO_MOCK=1
+SERPAPI_MOCK=1
+Non committare .env.
+Assicurati deps: axios, p-retry, qs, dayjs, (già presenti dal lavoro precedente).
+2) Interfaccia provider comune
+Crea src/integrations/types.ts:
+export type ProviderItem = {
+  url: string;
+  title?: string;
+  text?: string;
+  published?: string;
+  site?: string;
+  author?: string;
+  language?: string;
+  sentiment?: { score?: number; label?: "positive"|"neutral"|"negative" };
+  raw?: any;
+};
+export type SearchParams = {
+  q: string;
+  from?: string;
+  to?: string;
+  language?: string;
+  country?: string;
+  size?: number;
+  next?: string;
+};
+export interface Provider {
+  search(params: SearchParams): Promise<{ results: ProviderItem[]; next?: string }>;
+  id: string; // es: "webzio" | "serpapi:google_news" | "serpapi:reddit"
+}
+3) Client Webz.io (se non già fatto)
+File: src/integrations/webzioClient.ts (usa quanto creato prima, ma implementa Provider):
+legge WEBZIO_TOKEN, WEBZIO_BASE_URL
+se WEBZIO_MOCK==='1' o manca token → usa mock da src/mocks/webzio.fixture.json
+mappa in ProviderItem
+id = "webzio"
+4) Nuovo client SerpApi
+Crea src/integrations/serpapiClient.ts:
+esporta due classi SerpApiGoogleNewsProvider e SerpApiRedditProvider che implementano Provider
+legge SERPAPI_KEY, SERPAPI_BASE_URL
+se SERPAPI_MOCK==='1' o manca key → usa mock rispettivi
+Google News (SerpApi)
+chiamata: GET SERPAPI_BASE_URL?engine=google_news&q=<q>&hl=it&gl=it&num=100&after=<cursor>
+response: news_results[], ogni item: link, title, snippet, date, source
+pagination: serpapi_pagination?.next?.after → passalo come next
+mapping → ProviderItem:
+url = link
+title = title
+text = snippet
+published = date (normalizza se ISO assente)
+site = source
+author = undefined
+language = "it"
+raw = item
+id = "serpapi:google_news"
+Reddit (SerpApi)
+chiamata: GET SERPAPI_BASE_URL?engine=reddit_search&q=<q>&sort=new&after=<cursor>
+response: reddit_results[], item: link, title, snippet, posted_at, subreddit
+pagination: serpapi_pagination?.next_page_token o next (usa quello presente)
+mapping → ProviderItem (simile a sopra, site = subreddit)
+id = "serpapi:reddit"
+Gestisci retry con p-retry (3 tentativi, backoff su 429/5xx) e timeout: 30000.
+5) Mock & fixture SerpApi
+src/mocks/serpapi.google_news.fixture.json
+src/mocks/serpapi.reddit.fixture.json
+Contenuto: 5–10 record realistici ciascuno con campi minimi per i mapping sopra.
+src/mocks/serpapi.mock.ts che restituisce {results,next} in 2 “pagine”.
+6) Normalizzazione unica (resta la stessa)
+In src/services/normalize.ts:
+import dayjs from "dayjs";
+import { ProviderItem } from "../integrations/types";
+
+export type NormalizedMention = {
+  source: string;
+  url: string;
+  title: string;
+  text: string;
+  publishedAt: string | null;
+  domain: string;
+  author?: string;
+  language?: string;
+  sentiment?: "positive" | "neutral" | "negative" | null;
+  sentimentScore?: number | null;
+  raw?: any;
+};
+
+export const normalizeItem = (providerId: string, it: ProviderItem): NormalizedMention => ({
+  source: providerId,
+  url: it.url,
+  title: it.title ?? "",
+  text: it.text ?? "",
+  publishedAt: it.published ? dayjs(it.published).toISOString() : null,
+  domain: it.site ?? "",
+  author: it.author,
+  language: it.language,
+  sentiment: it.sentiment?.label ?? null,
+  sentimentScore: typeof it.sentiment?.score === "number" ? it.sentiment.score : null,
+  raw: it.raw ?? it
+});
+7) Registry provider & ingestion multipla
+Crea src/integrations/registry.ts:
+import { Provider } from "./types";
+import { WebzioProvider } from "./webzioClient";
+import { SerpApiGoogleNewsProvider, SerpApiRedditProvider } from "./serpapiClient";
+
+export function buildProviders(codes: string[]): Provider[] {
+  return codes.map((code) => {
+    if (code === "webzio") return new WebzioProvider();
+    if (code === "serpapi:google_news") return new SerpApiGoogleNewsProvider();
+    if (code === "serpapi:reddit") return new SerpApiRedditProvider();
+    throw new Error(`Unknown provider: ${code}`);
+  });
+}
+8) Profili di ricerca (con provider)
+Aggiorna src/config/searchProfiles.ts:
+export const profiles = {
+  brand: {
+    providers: ["webzio", "serpapi:google_news", "serpapi:reddit"],
+    q: `("Olio di Roma IGP" OR "Olio di Roma" OR "Olio Roma" OR "Olio Lazio")`,
+    language: "it",
+    country: "it",
+    site_type: ["news","blogs","discussions"]
+  },
+  evocazioni: {
+    providers: ["webzio", "serpapi:google_news"],
+    q: `(olio AND (Roma OR romanesco OR "Fori Imperiali" OR Colosseo OR Lupa)) AND (IGP OR DOP OR "indicazione geografica" OR "marchio")`,
+    language: "it",
+    country: "it",
+    site_type: ["news","blogs","discussions"]
+  },
+  criticita: {
+    providers: ["webzio", "serpapi:google_news", "serpapi:reddit"],
+    q: `("Olio di Roma" AND (truff* OR falso OR contraffazione OR "uso improprio" OR "violazione marchio"))`,
+    language: "it",
+    country: "it",
+    site_type: ["news","blogs","discussions"]
+  }
+};
+9) Runner ingest con merge & dedup
+In src/services/ingestion.ts:
+importa buildProviders e normalizeItem
+per ogni provider del profilo:
+pagina usando next
+accumula ProviderItem[]
+deduplica per url (Set)
+normalizza e saveMentions(items)
+logga per provider e total finale
+10) Script & test
+package.json (aggiunte):
+{
+  "scripts": {
+    "ingest": "tsx src/cli/ingest.ts",
+    "ingest:mock": "WEBZIO_MOCK=1 SERPAPI_MOCK=1 tsx src/cli/ingest.ts --profile brand",
+    "test:providers": "tsx src/tests/providers.mock.test.ts"
+  }
+}
+src/tests/providers.mock.test.ts:
+set WEBZIO_MOCK=1 e SERPAPI_MOCK=1
+run brand
+expect total > 0, dedup corretta (no url duplicati), mapping completo.
+11) README (estratto da aggiungere)
+### Providers
+- Webz.io (API-only) & SerpApi (Google News, Reddit)
+- Env:
+  WEBZIO_TOKEN=... | SERPAPI_KEY=...
+  WEBZIO_MOCK=0/1  | SERPAPI_MOCK=0/1
+
+### Mock mode (senza key)
+SERPAPI_MOCK=1 WEBZIO_MOCK=1 npm run ingest -- --profile brand
+
+### Live (con key)
+# .env
+WEBZIO_TOKEN=xxxx
+SERPAPI_KEY=yyyy
+WEBZIO_MOCK=0
+SERPAPI_MOCK=0
+
+npm run ingest -- --profile brand --from 2025-09-01T00:00:00Z --to 2025-09-30T00:00:00Z
+12) Definition of Done
+ Client SerpApi (Google News + Reddit) creati con retry/paginazione/mock
+ Registry provider e profili con lista providers
+ Runner multi-provider con dedup per url
+ Test mock passano
+ README aggiornato
+ Nessun riferimento residuo ad Awario
+Esegui ora tutte le modifiche e mostrami il diff dei file creati/modificati.
+Se il repo è JS, usa .js e rimuovi i tipi; mantieni identica la struttura.
