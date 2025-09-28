@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { ReportStatus } from '@prisma/client';
+
+// Mappa delle transizioni consentite secondo il workflow
+const allowedTransitions: Record<ReportStatus, ReportStatus[]> = {
+  ANALISI: ['ARCHIVIATA', 'IN_CONTROLLO'],
+  ARCHIVIATA: [], // Stato terminale
+  IN_CONTROLLO: ['VERIFICA_SOPRALLUOGO', 'VERIFICA_CHIARIMENTI', 'SEGNALATA_A_ENTE'],
+  VERIFICA_SOPRALLUOGO: ['CHIUSA', 'SEGNALATA_A_ENTE'],
+  VERIFICA_CHIARIMENTI: ['CHIUSA', 'SEGNALATA_A_ENTE'], 
+  SEGNALATA_A_ENTE: ['IN_ATTESA_FEEDBACK_ENTE'],
+  IN_ATTESA_FEEDBACK_ENTE: ['CHIUSA'],
+  CHIUSA: ['ARCHIVIATA'] // Solo archiviazione dopo chiusura
+};
 
 // GET /api/reports/[id] - Dettaglio report completo
 export async function GET(
@@ -56,11 +69,26 @@ export async function GET(
       );
     }
 
+    // Calcola transizioni disponibili per lo stato attuale
+    const availableTransitions = allowedTransitions[report.status as ReportStatus] || [];
+
     return NextResponse.json({
       report: {
         ...report,
-        counters: report._count
-      }
+        _count: {
+          actionLogs: report._count.actions || 0,
+          inspections: report._count.inspections || 0,
+          clarificationRequests: report._count.clarifications || 0,
+          authorityNotices: report._count.authorityNotices || 0,
+          attachments: report._count.attachments || 0
+        }
+      },
+      actionLogs: report.actions || [],
+      inspections: report.inspections || [],
+      clarificationRequests: report.clarifications || [],
+      authorityNotices: report.authorityNotices || [],
+      attachments: report.attachments || [],
+      availableTransitions
     });
 
   } catch (error) {
