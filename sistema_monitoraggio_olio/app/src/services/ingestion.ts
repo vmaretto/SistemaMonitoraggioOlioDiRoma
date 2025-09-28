@@ -487,7 +487,7 @@ export class MultiProviderIngestionService {
    * Testa la connessione di tutti i provider
    */
   async testAllProviders(): Promise<Record<string, boolean>> {
-    const providerCodes = ['awario', 'webzio', 'serpapi_google_news', 'serpapi_reddit'];
+    const providerCodes = ['webzio', 'serpapi_google_news', 'serpapi_reddit'];
     const results: Record<string, boolean> = {};
     
     console.log('🔧 Test connessione provider...');

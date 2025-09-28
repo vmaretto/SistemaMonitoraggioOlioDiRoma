@@ -67,7 +67,7 @@ export const BRAND_MONITORING_PROFILE: SearchProfile = {
   name: 'Monitoraggio Marchi',
   description: 'Monitoraggio protezione marchi DOP/IGP del Lazio per identificare usi impropri e contraffazioni',
   
-  providers: ['awario', 'webzio', 'serpapi_google_news'],
+  providers: ['webzio', 'serpapi_google_news'],
   
   queries: [
     {
@@ -123,10 +123,6 @@ export const BRAND_MONITORING_PROFILE: SearchProfile = {
   },
   
   providerSettings: {
-    awario: {
-      language: 'it',
-      country: 'it'
-    },
     webzio: {
       language: 'it',
       country: 'it'
@@ -146,7 +142,7 @@ export const EVOCAZIONI_MONITORING_PROFILE: SearchProfile = {
   name: 'Monitoraggio Evocazioni',
   description: 'Rilevamento uso improprio o evocativo di denominazioni DOP/IGP protette',
   
-  providers: ['webzio', 'serpapi_reddit', 'awario'],
+  providers: ['webzio', 'serpapi_reddit'],
   
   queries: [
     {
@@ -274,7 +270,7 @@ export const TREND_MERCATO_PROFILE: SearchProfile = {
   name: 'Trend Mercato',
   description: 'Monitoraggio tendenze mercato, innovazioni e opportunità commerciali',
   
-  providers: ['serpapi_google_news', 'webzio', 'awario'],
+  providers: ['serpapi_google_news', 'webzio'],
   
   queries: [
     {

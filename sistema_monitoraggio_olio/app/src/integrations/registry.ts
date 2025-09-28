@@ -4,7 +4,6 @@
  */
 
 import { Provider } from './types';
-import { AwarioProvider } from './awarioProvider';
 import { WebzioProvider } from './webzioProvider';
 import { 
   SerpApiGoogleNewsProvider, 
@@ -39,7 +38,6 @@ export interface ProviderConfig {
  * Configurazione completa del sistema multi-provider
  */
 export interface MultiProviderConfig {
-  awario: ProviderConfig;
   webzio: ProviderConfig;
   serpapi_google_news: ProviderConfig;
   serpapi_reddit: ProviderConfig;
@@ -77,7 +75,7 @@ export class ProviderRegistry {
    * Ottiene tutti i provider attivi
    */
   getAllProviders(): Provider[] {
-    const codes: ProviderCode[] = ['awario', 'webzio', 'serpapi_google_news', 'serpapi_reddit'];
+    const codes: ProviderCode[] = ['webzio', 'serpapi_google_news', 'serpapi_reddit'];
     return codes.map(code => this.getProvider(code));
   }
 
@@ -103,11 +101,6 @@ export class ProviderRegistry {
     // Validazione API keys (solo se non in mock mode)
     if (!config.mockMode) {
       switch (code) {
-        case 'awario':
-          if (!config.apiKey || !config.baseUrl) {
-            errors.push('Awario requires apiKey and baseUrl');
-          }
-          break;
         
         case 'webzio':
           if (!config.apiKey) {
@@ -151,7 +144,7 @@ export class ProviderRegistry {
   async testAllConnections(): Promise<Record<ProviderCode, boolean>> {
     const results: Record<ProviderCode, boolean> = {} as any;
     
-    const providers: ProviderCode[] = ['awario', 'webzio', 'serpapi_google_news', 'serpapi_reddit'];
+    const providers: ProviderCode[] = ['webzio', 'serpapi_google_news', 'serpapi_reddit'];
     
     for (const code of providers) {
       try {
@@ -194,13 +187,6 @@ export class ProviderRegistry {
     }
 
     switch (code) {
-      case 'awario':
-        return new AwarioProvider({
-          apiKey: config.apiKey || '',
-          baseUrl: config.baseUrl || '',
-          mockMode: config.mockMode,
-          timeout: config.timeout
-        });
 
       case 'webzio':
         return new WebzioProvider({
@@ -237,16 +223,6 @@ export class ProviderRegistry {
  */
 export function buildProviderConfigFromEnv(): MultiProviderConfig {
   return {
-    awario: {
-      apiKey: process.env.AWARIO_API_KEY,
-      baseUrl: process.env.AWARIO_BASE_URL,
-      mockMode: process.env.AWARIO_MOCK_MODE === 'true',
-      timeout: parseInt(process.env.AWARIO_TIMEOUT || '30000'),
-      rateLimit: {
-        requestsPerMinute: 60,
-        requestsPerHour: 1000
-      }
-    },
     
     webzio: {
       apiKey: process.env.WEBZIO_TOKEN,
@@ -311,7 +287,6 @@ export function getAllProviders(config?: MultiProviderConfig): Provider[] {
  * Provider codes disponibili per validazione
  */
 export const AVAILABLE_PROVIDER_CODES: ProviderCode[] = [
-  'awario',
   'webzio', 
   'serpapi_google_news',
   'serpapi_reddit'
