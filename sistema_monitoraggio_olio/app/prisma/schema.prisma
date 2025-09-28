@@ -42,12 +42,19 @@ model User {
   password      String?
   emailVerified DateTime?
   image         String?
-  role          String    @default("user")
+  role          UserRole  @default(USER)
   organization  String?
   accounts      Account[]
   sessions      Session[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+}
+
+enum UserRole {
+  USER
+  ANALYST
+  INSPECTOR
+  ADMIN
 }
 
 model VerificationToken {
@@ -150,4 +157,98 @@ model LogNotifiche {
   stato       String   @default("inviata") // inviata, fallita, in_sospeso
   alertId     String?
   createdAt   DateTime @default(now())
+}
+
+// === SISTEMA TRACCIABILITÀ ISPETTORI ===
+
+model Report {
+  id              String        @id @default(cuid())
+  title           String
+  description     String        @db.Text
+  createdAt       DateTime      @default(now())
+  createdById     String
+  status          ReportStatus  @default(ANALISI)
+  inspections     Inspection[]
+  clarifications  ClarificationRequest[]
+  authorityNotices AuthorityNotice[]
+  actions         ActionLog[]
+  attachments     Attachment[]
+  updatedAt       DateTime      @updatedAt
+}
+
+enum ReportStatus {
+  ANALISI
+  ARCHIVIATA
+  IN_CONTROLLO
+  VERIFICA_SOPRALLUOGO
+  VERIFICA_CHIARIMENTI
+  SEGNALATA_A_ENTE
+  IN_ATTESA_FEEDBACK_ENTE
+  CHIUSA
+}
+
+model ActionLog {
+  id          String   @id @default(cuid())
+  reportId    String
+  type        String   // es.: ANALISI_AVVIATA, ARCHIVIAZIONE, AVVIO_CONTROLLO, INVIO_A_ENTE, SOPRALLUOGO_VERBALE, RICHIESTA_CHIARIMENTI, FEEDBACK_ENTE, CHIUSURA
+  message     String   @db.Text
+  meta        Json?
+  createdAt   DateTime @default(now())
+  actorId     String
+  report      Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+}
+
+model Inspection {
+  id          String   @id @default(cuid())
+  reportId    String
+  date        DateTime
+  inspectorId String
+  location    String?
+  minutesText String?  @db.Text // verbale
+  outcome     String?  // esito breve
+  createdAt   DateTime @default(now())
+  report      Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  updatedAt   DateTime @updatedAt
+}
+
+model ClarificationRequest {
+  id          String   @id @default(cuid())
+  reportId    String
+  requestedAt DateTime @default(now())
+  requestedBy String
+  question    String   @db.Text
+  dueAt       DateTime?
+  feedbackAt  DateTime?
+  feedback    String?  @db.Text
+  outcome     String?  // CHIUSA o SEGNALATA_A_ENTE
+  report      Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  updatedAt   DateTime @updatedAt
+}
+
+model AuthorityNotice {
+  id           String   @id @default(cuid())
+  reportId     String
+  sentAt       DateTime @default(now())
+  sentBy       String
+  authority    String
+  protocol     String?
+  feedbackAt   DateTime?
+  feedback     String?  @db.Text
+  report       Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  updatedAt    DateTime @updatedAt
+}
+
+model Attachment {
+  id         String   @id @default(cuid())
+  reportId   String
+  entityType String   // REPORT | INSPECTION | CLARIFICATION | AUTHORITY_NOTICE
+  entityId   String
+  filename   String
+  url        String
+  uploadedBy String
+  uploadedAt DateTime @default(now())
+  report     Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  
+  // Le relazioni vengono gestite a livello applicativo tramite entityType ed entityId
+  @@index([entityType, entityId])
 }

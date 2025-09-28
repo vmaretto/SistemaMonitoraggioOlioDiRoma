@@ -19,7 +19,34 @@ async function main() {
       email: 'admin@consorzio-olio-roma.it',
       name: 'Direttore Consorzio',
       password: hashedPassword,
-      role: 'direttore',
+      role: 'ADMIN',
+      organization: 'Consorzio Olio Roma-Lazio'
+    }
+  });
+
+  // Utenti per sistema tracciabilità ispettori
+  const analystPassword = await bcryptjs.hash('analyst123', 10);
+  const analystUser = await prisma.user.upsert({
+    where: { email: 'analyst@consorzio-olio-roma.it' },
+    update: {},
+    create: {
+      email: 'analyst@consorzio-olio-roma.it',
+      name: 'Maria Rossi - Analista',
+      password: analystPassword,
+      role: 'ANALYST',
+      organization: 'Consorzio Olio Roma-Lazio'
+    }
+  });
+
+  const inspectorPassword = await bcryptjs.hash('inspector123', 10);
+  const inspectorUser = await prisma.user.upsert({
+    where: { email: 'inspector@consorzio-olio-roma.it' },
+    update: {},
+    create: {
+      email: 'inspector@consorzio-olio-roma.it',
+      name: 'Giuseppe Bianchi - Ispettore',
+      password: inspectorPassword,
+      role: 'INSPECTOR',
       organization: 'Consorzio Olio Roma-Lazio'
     }
   });
@@ -33,7 +60,7 @@ async function main() {
       email: 'john@doe.com',
       name: 'John Doe',
       password: testPassword,
-      role: 'admin'
+      role: 'USER'
     }
   });
 
@@ -490,10 +517,287 @@ async function main() {
     });
   }
 
+  // 9. SISTEMA TRACCIABILITÀ ISPETTORI
+  console.log('📋 Creazione report e sistema tracciabilità...');
+
+  // Report 1: In analisi (stato iniziale)
+  const report1 = await prisma.report.create({
+    data: {
+      title: 'Segnalazione uso improprio marchio DOP',
+      description: 'Rilevato prodotto con etichetta che rivendica falsamente denominazione DOP Sabina. Richiede analisi approfondita e verifica documenti produttore.',
+      createdById: analystUser.id,
+      status: 'ANALISI'
+    }
+  });
+
+  await prisma.actionLog.create({
+    data: {
+      reportId: report1.id,
+      type: 'ANALISI_AVVIATA',
+      message: 'Segnalazione ricevuta e assegnata per analisi preliminare',
+      actorId: analystUser.id,
+      meta: {
+        source: 'Controllo etichette automatico',
+        priority: 'media'
+      }
+    }
+  });
+
+  // Report 2: In controllo 
+  const report2 = await prisma.report.create({
+    data: {
+      title: 'Contraffazione etichetta IGP Lazio',
+      description: 'Prodotto commercializzato con etichetta IGP contraffatta. Elementi grafici copiati ma produttore non autorizzato. Richiesto intervento ispettivo.',
+      createdById: analystUser.id,
+      status: 'IN_CONTROLLO'
+    }
+  });
+
+  await prisma.actionLog.createMany({
+    data: [
+      {
+        reportId: report2.id,
+        type: 'ANALISI_AVVIATA',
+        message: 'Segnalazione ricevuta e assegnata per analisi preliminare',
+        actorId: analystUser.id,
+        createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) // 5 giorni fa
+      },
+      {
+        reportId: report2.id,
+        type: 'AVVIO_CONTROLLO',
+        message: 'Analisi completata. Evidenze di contraffazione rilevate. Avviato controllo approfondito.',
+        actorId: analystUser.id,
+        meta: {
+          findings: ['Logo contraffatto', 'Produttore non autorizzato', 'Codice IGP falso'],
+          nextSteps: 'Controllo documentale e possibile sopralluogo'
+        },
+        createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) // 3 giorni fa
+      }
+    ]
+  });
+
+  // Report 3: Verifica sopralluogo (con sopralluogo completato)
+  const report3 = await prisma.report.create({
+    data: {
+      title: 'Verifica frantoio produttore DOP Sabina',
+      description: 'Controllo conformità processo produttivo e documentazione per rinnovo autorizzazione DOP.',
+      createdById: inspectorUser.id,
+      status: 'VERIFICA_SOPRALLUOGO'
+    }
+  });
+
+  const inspection1 = await prisma.inspection.create({
+    data: {
+      reportId: report3.id,
+      date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 giorni fa
+      inspectorId: inspectorUser.id,
+      location: 'Frantoio Sabino - Via Roma 123, Rieti',
+      minutesText: `
+VERBALE DI ISPEZIONE - Frantoio Sabino
+
+Data: ${new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toLocaleDateString('it-IT')}
+Ispettore: Giuseppe Bianchi
+Luogo: Frantoio Sabino, Via Roma 123, Rieti
+
+VERIFICHE EFFETTUATE:
+- Controllo documentazione produttiva: CONFORME
+- Verifica tracciabilità olive: CONFORME  
+- Controllo processo di spremitura: CONFORME
+- Verifiche etichettatura prodotti finiti: CONFORME
+- Controllo registri di carico/scarico: CONFORME
+
+OSSERVAZIONI:
+- Documentazione completa e aggiornata
+- Processi conformi al disciplinare DOP Sabina
+- Nessuna non conformità rilevata
+
+CONCLUSIONI:
+Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della certificazione DOP Sabina.
+      `,
+      outcome: 'CONFORME - Nessuna violazione rilevata'
+    }
+  });
+
+  await prisma.actionLog.createMany({
+    data: [
+      {
+        reportId: report3.id,
+        type: 'ANALISI_AVVIATA',
+        message: 'Richiesta verifica periodica frantoio autorizzato DOP',
+        actorId: inspectorUser.id,
+        createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // 7 giorni fa
+      },
+      {
+        reportId: report3.id,
+        type: 'AVVIO_CONTROLLO',
+        message: 'Documentazione preliminare verificata. Programmato sopralluogo.',
+        actorId: inspectorUser.id,
+        createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000) // 4 giorni fa
+      },
+      {
+        reportId: report3.id,
+        type: 'SOPRALLUOGO_VERBALE',
+        message: 'Completato sopralluogo presso frantoio. Nessuna irregolarità riscontrata.',
+        actorId: inspectorUser.id,
+        meta: {
+          inspectionId: inspection1.id,
+          location: 'Frantoio Sabino - Rieti',
+          outcome: 'CONFORME'
+        },
+        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) // 2 giorni fa
+      }
+    ]
+  });
+
+  // Report 4: Segnalata a ente (con notice all'ente)
+  const report4 = await prisma.report.create({
+    data: {
+      title: 'Vendita olio contraffatto mercato Roma',
+      description: 'Rilevata vendita di olio con etichetta DOP Sabina contraffatta presso mercato rionale. Necessario intervento autorità competenti.',
+      createdById: inspectorUser.id,
+      status: 'IN_ATTESA_FEEDBACK_ENTE'
+    }
+  });
+
+  const authorityNotice1 = await prisma.authorityNotice.create({
+    data: {
+      reportId: report4.id,
+      sentBy: inspectorUser.id,
+      authority: 'ICQRF - Ispettorato Centrale Qualità e Frodi',
+      protocol: 'ICQRF-2024-001234',
+      sentAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) // 1 giorno fa
+    }
+  });
+
+  await prisma.actionLog.createMany({
+    data: [
+      {
+        reportId: report4.id,
+        type: 'ANALISI_AVVIATA',
+        message: 'Segnalazione contraffazione ricevuta da cittadino',
+        actorId: analystUser.id,
+        createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) // 10 giorni fa
+      },
+      {
+        reportId: report4.id,
+        type: 'AVVIO_CONTROLLO',
+        message: 'Analisi confermata contraffazione. Avviato controllo approfondito.',
+        actorId: analystUser.id,
+        createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000) // 8 giorni fa
+      },
+      {
+        reportId: report4.id,
+        type: 'INVIO_A_ENTE',
+        message: 'Caso segnalato a ICQRF per intervento delle autorità competenti',
+        actorId: inspectorUser.id,
+        meta: {
+          authority: 'ICQRF - Ispettorato Centrale Qualità e Frodi',
+          protocol: 'ICQRF-2024-001234',
+          noticeId: authorityNotice1.id
+        },
+        createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) // 1 giorno fa
+      }
+    ]
+  });
+
+  // Report 5: Chiusa (con chiarimenti ricevuti)
+  const report5 = await prisma.report.create({
+    data: {
+      title: 'Chiarimenti su etichettatura olio biologico',
+      description: 'Richiesta chiarimenti su conformità etichetta olio biologico con dicitura aggiuntiva non standard.',
+      createdById: analystUser.id,
+      status: 'CHIUSA'
+    }
+  });
+
+  const clarification1 = await prisma.clarificationRequest.create({
+    data: {
+      reportId: report5.id,
+      requestedBy: analystUser.id,
+      question: 'È consentito aggiungere sulla etichetta la dicitura "Spremuto a freddo sotto i 27°C" su olio biologico certificato?',
+      dueAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 giorni fa
+      feedbackAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 giorni fa
+      feedback: 'La dicitura è consentita purché sia verificabile e documentata la temperatura di estrazione. Richiesto certificato del processo produttivo.',
+      outcome: 'CHIUSA',
+      requestedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000) // 15 giorni fa
+    }
+  });
+
+  await prisma.actionLog.createMany({
+    data: [
+      {
+        reportId: report5.id,
+        type: 'ANALISI_AVVIATA',
+        message: 'Richiesta chiarimenti su conformità etichettatura biologica',
+        actorId: analystUser.id,
+        createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000) // 15 giorni fa
+      },
+      {
+        reportId: report5.id,
+        type: 'RICHIESTA_CHIARIMENTI',
+        message: 'Richiesti chiarimenti su normativa etichettatura temperatura estrazione',
+        actorId: analystUser.id,
+        meta: {
+          clarificationId: clarification1.id,
+          dueDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+        },
+        createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000) // 15 giorni fa
+      },
+      {
+        reportId: report5.id,
+        type: 'FEEDBACK_ENTE',
+        message: 'Ricevuto feedback normativo. Dicitura consentita con documentazione.',
+        actorId: analystUser.id,
+        meta: {
+          clarificationId: clarification1.id,
+          outcome: 'APPROVED_WITH_CONDITIONS'
+        },
+        createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) // 3 giorni fa
+      },
+      {
+        reportId: report5.id,
+        type: 'CHIUSURA',
+        message: 'Caso chiuso. Etichettatura conforme con documentazione aggiuntiva.',
+        actorId: analystUser.id,
+        createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) // 3 giorni fa
+      }
+    ]
+  });
+
+  // Aggiungi alcuni allegati demo
+  await prisma.attachment.createMany({
+    data: [
+      {
+        reportId: report1.id,
+        entityType: 'REPORT',
+        entityId: report1.id,
+        filename: 'foto_etichetta_sospetta.jpg',
+        url: '/uploads/attachments/foto_etichetta_sospetta.jpg',
+        uploadedBy: analystUser.id
+      },
+      {
+        reportId: report3.id,
+        entityType: 'INSPECTION',
+        entityId: inspection1.id,
+        filename: 'verbale_sopralluogo_frantoio.pdf',
+        url: '/uploads/attachments/verbale_sopralluogo_frantoio.pdf',
+        uploadedBy: inspectorUser.id
+      },
+      {
+        reportId: report4.id,
+        entityType: 'AUTHORITY_NOTICE',
+        entityId: authorityNotice1.id,
+        filename: 'segnalazione_icqrf.pdf',
+        url: '/uploads/attachments/segnalazione_icqrf.pdf',
+        uploadedBy: inspectorUser.id
+      }
+    ]
+  });
+
   console.log('✅ Seed completato con successo!');
   console.log(`
 📊 RIEPILOGO DATI CREATI:
-- 👤 Utenti: 2 (admin + test)
+- 👤 Utenti: 4 (admin, analyst, inspector, test)
 - 🔍 Keywords: 10 
 - 🏷️ Etichette ufficiali: 12
 - 📱 Contenuti monitorati: ~45 (ultimi 30 giorni)
@@ -501,10 +805,25 @@ async function main() {
 - 🚨 Alert: 3
 - ⚙️ Configurazioni: 5
 - 📧 Log notifiche: 2
+- 📋 Report tracciabilità: 5 (stati diversi)
+- 🔍 Action Log: 15 (timeline completa)
+- 🏢 Sopralluoghi: 1 (con verbale)
+- ❓ Richieste chiarimenti: 1 (con feedback)
+- 📤 Segnalazioni ente: 1 (ICQRF)
+- 📎 Allegati: 3 (documenti demo)
 
 🔑 CREDENZIALI TEST:
 - Admin: admin@consorzio-olio-roma.it / admin123
+- Analista: analyst@consorzio-olio-roma.it / analyst123
+- Ispettore: inspector@consorzio-olio-roma.it / inspector123
 - Test: john@doe.com / johndoe123
+
+📋 STATI REPORT DEMO:
+- Report 1: ANALISI (segnalazione DOP)
+- Report 2: IN_CONTROLLO (contraffazione IGP)
+- Report 3: VERIFICA_SOPRALLUOGO (frantoio con verbale)
+- Report 4: IN_ATTESA_FEEDBACK_ENTE (segnalato ICQRF)
+- Report 5: CHIUSA (chiarimenti completati)
   `);
 }
 
