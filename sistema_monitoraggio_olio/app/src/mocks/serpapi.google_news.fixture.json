@@ -1,0 +1,111 @@
+{
+  "page1": {
+    "search_metadata": {
+      "id": "mock_google_news_search",
+      "status": "Success",
+      "created_at": "2024-09-28T10:00:00Z",
+      "processed_at": "2024-09-28T10:00:01Z",
+      "total_time_taken": 1.2
+    },
+    "search_parameters": {
+      "engine": "google_news",
+      "q": "olio extravergine lazio",
+      "hl": "it",
+      "gl": "it"
+    },
+    "news_results": [
+      {
+        "position": 1,
+        "title": "Olio DOP del Lazio: crescita record delle esportazioni nel 2024",
+        "link": "https://www.ilmessaggero.it/economia/olio-dop-lazio-export-2024",
+        "snippet": "Il settore oleario del Lazio registra una crescita del 18% delle esportazioni verso i mercati UE e nordamericani. L'olio extravergine DOP Roma e IGP Sabina conquistano sempre più consumatori internazionali grazie alla qualità certificata.",
+        "date": "2 ore fa",
+        "source": "Il Messaggero"
+      },
+      {
+        "position": 2,
+        "title": "Frantoi dei Castelli Romani: innovazione e tradizione per l'olio IGP",
+        "link": "https://www.ansa.it/lazio/notizie/2024/09/frantoi-castelli-romani-innovazione",
+        "snippet": "I produttori di olio IGP dei Colli Albani investono in nuove tecnologie di spremitura a freddo mantenendo le tecniche tradizionali. Sistemi di controllo temperatura e separazione ottimizzati per preservare le caratteristiche organolettiche uniche.",
+        "date": "4 ore fa",
+        "source": "ANSA Lazio"
+      },
+      {
+        "position": 3,
+        "title": "Olio extravergine Sabina verso il riconoscimento UNESCO",
+        "link": "https://www.adnkronos.com/economia/olio-sabina-unesco-candidatura",
+        "snippet": "La candidatura dell'olio extravergine DOP Sabina per il riconoscimento UNESCO come patrimonio immateriale dell'umanità supera la fase preliminare. Il Consorzio di tutela celebra questo importante traguardo.",
+        "date": "6 ore fa",
+        "source": "Adnkronos"
+      },
+      {
+        "position": 4,
+        "title": "Prezzi olio in aumento: come il Lazio mantiene la competitività",
+        "link": "https://www.repubblica.it/economia/2024/09/prezzi-olio-lazio-competitivita",
+        "snippet": "Nonostante l'aumento generale dei prezzi dell'olio extravergine, i produttori laziali puntano sulla qualità certificata DOP e IGP per mantenere la competitività sui mercati nazionali e internazionali.",
+        "date": "8 ore fa",
+        "source": "La Repubblica"
+      },
+      {
+        "position": 5,
+        "title": "Sagra dell'olio nuovo nei Castelli Romani: il programma",
+        "link": "https://www.romatoday.it/eventi/sagra-olio-nuovo-castelli-romani-2024",
+        "snippet": "Dal 15 al 30 novembre la tradizionale Sagra dell'Olio Nuovo nei comuni dei Castelli Romani. Degustazioni, visite ai frantoi e incontri con i produttori di olio IGP del territorio.",
+        "date": "12 ore fa",
+        "source": "RomaToday"
+      },
+      {
+        "position": 6,
+        "title": "Contraffazione olio DOP: operazione Carabinieri nel Lazio",
+        "link": "https://www.corriere.it/cronache/24_settembre_28/contraffazione-olio-operazione-carabinieri",
+        "snippet": "I Carabinieri del NOE sequestrano 5000 litri di olio contraffatto spacciato per DOP Sabina. L'operazione mira a tutelare i produttori onesti e i consumatori dai prodotti fraudolenti.",
+        "date": "1 giorno fa",
+        "source": "Corriere della Sera"
+      },
+      {
+        "position": 7,
+        "title": "Sostenibilità nell'olivicoltura laziale: progetti innovativi",
+        "link": "https://www.agronotizie.it/sostenibilita-olivicoltura-lazio-progetti-2024",
+        "snippet": "Nuovi progetti per la sostenibilità ambientale nell'olivicoltura del Lazio. Tecniche di coltivazione biologica e gestione idrica efficiente per ridurre l'impatto ambientale mantenendo la qualità.",
+        "date": "1 giorno fa",
+        "source": "AgroNotizie"
+      },
+      {
+        "position": 8,
+        "title": "Mercato olio: Lazio secondo in Italia per valore della produzione",
+        "link": "https://www.ilsole24ore.com/art/mercato-olio-lazio-secondo-italia-valore",
+        "snippet": "Secondo i dati ISMEA, il Lazio si conferma seconda regione italiana per valore della produzione olearia, subito dopo la Puglia. Il trend positivo è trainato dalle denominazioni DOP e IGP.",
+        "date": "2 giorni fa",
+        "source": "Il Sole 24 Ore"
+      }
+    ],
+    "serpapi_pagination": {
+      "next_page_token": "mock_page_2_token"
+    }
+  },
+  "page2": {
+    "search_metadata": {
+      "id": "mock_google_news_search_page2",
+      "status": "Success"
+    },
+    "news_results": [
+      {
+        "position": 9,
+        "title": "Corso di degustazione olio: appuntamento a Roma",
+        "link": "https://www.gustoblog.it/corso-degustazione-olio-roma-novembre-2024",
+        "snippet": "Il Consorzio Olio Roma organizza corsi di degustazione per imparare a riconoscere le caratteristiche dell'olio extravergine DOP. Appuntamento presso la sede di Via dei Fori Imperiali.",
+        "date": "3 giorni fa",
+        "source": "GustoBlog"
+      },
+      {
+        "position": 10,
+        "title": "Chef stellati scelgono l'olio del Lazio per i loro menu",
+        "link": "https://www.lacucinaitaliana.it/chef-stellati-olio-lazio-menu",
+        "snippet": "Sempre più chef stellati della capitale scelgono l'olio extravergine DOP Roma e IGP Sabina per i loro menu. Il sapore equilibrato e la qualità certificata sono le caratteristiche più apprezzate.",
+        "date": "3 giorni fa",
+        "source": "La Cucina Italiana"
+      }
+    ],
+    "serpapi_pagination": {}
+  }
+}

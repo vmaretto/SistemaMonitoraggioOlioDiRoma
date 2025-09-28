@@ -1,0 +1,129 @@
+{
+  "page1": {
+    "search_metadata": {
+      "id": "mock_reddit_search",
+      "status": "Success",
+      "created_at": "2024-09-28T10:00:00Z",
+      "processed_at": "2024-09-28T10:00:01Z",
+      "total_time_taken": 0.8
+    },
+    "search_parameters": {
+      "engine": "reddit_search",
+      "q": "lazio olive oil DOP",
+      "sort": "new"
+    },
+    "reddit_results": [
+      {
+        "position": 1,
+        "title": "Best Italian olive oil regions? Lazio vs Tuscany comparison",
+        "link": "https://reddit.com/r/oliveoil/comments/123456/lazio_vs_tuscany_olive_oil",
+        "snippet": "I've been comparing olive oils from different Italian regions. Lazio DOP Sabina has this distinctive peppery finish that I absolutely love. The production areas around Rome (Castelli Romani) produce some incredible IGP oils. Anyone else tried these?",
+        "posted_at": "2024-09-28T08:30:00Z",
+        "subreddit": "r/oliveoil",
+        "author": "OliveOilEnthusiast92",
+        "comments": 24,
+        "votes": 87
+      },
+      {
+        "position": 2,
+        "title": "Authentic Italian olive oil recommendations for cooking?",
+        "link": "https://reddit.com/r/italy/comments/789012/authentic_olive_oil_cooking",
+        "snippet": "Planning to visit Rome next month and want to bring back some quality olive oil. Looking for authentic DOP certified oil from Lazio region. What are the best producers to look for? Price range doesn't matter if quality is there.",
+        "posted_at": "2024-09-28T06:15:00Z",
+        "subreddit": "r/italy",
+        "author": "FoodieRomaTraveler",
+        "comments": 18,
+        "votes": 45
+      },
+      {
+        "position": 3,
+        "title": "Is expensive Italian olive oil really worth it? Discussion",
+        "link": "https://reddit.com/r/food/comments/345678/expensive_italian_olive_oil_worth",
+        "snippet": "Bought a bottle of DOP Sabina olive oil for $45 yesterday. The flavor is incredible - fruity, peppery, complex. But wondering if there are more affordable alternatives with similar quality from Lazio region. Anyone has experience with local producers?",
+        "posted_at": "2024-09-27T20:45:00Z",
+        "subreddit": "r/food",
+        "author": "BudgetGourmetCook",
+        "comments": 31,
+        "votes": 62
+      },
+      {
+        "position": 4,
+        "title": "Roman cuisine and local olive oil pairing guide",
+        "link": "https://reddit.com/r/AskCulinary/comments/456789/roman_cuisine_olive_oil_pairing",
+        "snippet": "Working on a Roman cuisine project and need advice on olive oil pairings. The local Lazio oils (DOP Roma, IGP Colli Albani) have unique characteristics. How do professional chefs in Rome use these oils? Any specific dish recommendations?",
+        "posted_at": "2024-09-27T14:20:00Z",
+        "subreddit": "r/AskCulinary",
+        "author": "CulinaryStudent2024",
+        "comments": 15,
+        "votes": 38
+      },
+      {
+        "position": 5,
+        "title": "Olive harvest season in Italy - Lazio region experience",
+        "link": "https://reddit.com/r/travel/comments/567890/olive_harvest_lazio_italy",
+        "snippet": "Just returned from an amazing olive harvest experience in the Castelli Romani area south of Rome. Learned so much about traditional pressing methods and DOP certification. The IGP oil from this region is phenomenal. Highly recommend visiting during harvest season!",
+        "posted_at": "2024-09-27T11:30:00Z",
+        "subreddit": "r/travel",
+        "author": "ItalianHarvestFan",
+        "comments": 22,
+        "votes": 94
+      },
+      {
+        "position": 6,
+        "title": "Counterfeit Italian olive oil - how to spot authentic DOP?",
+        "link": "https://reddit.com/r/italy/comments/678901/counterfeit_dop_olive_oil_spotting",
+        "snippet": "Concerned about fake DOP olive oil in the market. Bought what was labeled as 'DOP Sabina' but the taste seems off. What are the telltale signs of authentic Lazio region olive oil? Any certification numbers or labels to look for?",
+        "posted_at": "2024-09-26T16:45:00Z",
+        "subreddit": "r/italy",
+        "author": "ConcernedConsumer85",
+        "comments": 12,
+        "votes": 29
+      },
+      {
+        "position": 7,
+        "title": "Italian olive oil festival recommendations near Rome",
+        "link": "https://reddit.com/r/solotravel/comments/789012/italian_olive_oil_festival_rome",
+        "snippet": "Solo traveling to Rome in November and heard there are olive oil festivals in the area. Interested in learning about local Lazio production and tasting DOP/IGP oils. Any recommendations for festivals or farm visits around Rome?",
+        "posted_at": "2024-09-26T09:15:00Z",
+        "subreddit": "r/solotravel",
+        "author": "SoloFoodieExplorer",
+        "comments": 8,
+        "votes": 16
+      }
+    ],
+    "serpapi_pagination": {
+      "next_page_token": "mock_reddit_page_2_token"
+    }
+  },
+  "page2": {
+    "search_metadata": {
+      "id": "mock_reddit_search_page2",
+      "status": "Success"
+    },
+    "reddit_results": [
+      {
+        "position": 8,
+        "title": "Traditional vs modern olive pressing - Lazio producers adapting",
+        "link": "https://reddit.com/r/oliveoil/comments/890123/traditional_modern_pressing_lazio",
+        "snippet": "Visited several frantoi in the Lazio region last week. Fascinating to see how producers balance traditional stone grinding with modern centrifugal systems. The DOP Sabina producers seem to maintain traditional methods while IGP producers are more innovative.",
+        "posted_at": "2024-09-25T18:30:00Z",
+        "subreddit": "r/oliveoil",
+        "author": "OliveProcessingGeek",
+        "comments": 19,
+        "votes": 55
+      },
+      {
+        "position": 9,
+        "title": "Gift ideas: premium Italian olive oil from Rome area",
+        "link": "https://reddit.com/r/italy/comments/901234/gift_premium_olive_oil_rome",
+        "snippet": "Looking for gift ideas for my Italian food-loving friend. Want to get premium olive oil from Rome/Lazio region. Budget around $60-80. Any specific DOP or IGP producers you'd recommend? Preferably something not easily available outside Italy.",
+        "posted_at": "2024-09-25T13:45:00Z",
+        "subreddit": "r/italy",
+        "author": "ThoughtfulGifter",
+        "comments": 14,
+        "votes": 33
+      }
+    ],
+    "serpapi_pagination": {}
+  }
+}

@@ -1,0 +1,227 @@
+{
+  "page1": {
+    "totalResults": 1247,
+    "moreResultsAvailable": 1000,
+    "next": "mock_webzio_page_2_token",
+    "requestsLeft": 9985,
+    "posts": [
+      {
+        "uuid": "webzio_mock_001",
+        "url": "https://www.ilmessaggero.it/economia/olio-extravergine-lazio-mercati-internazionali",
+        "ord_in_thread": 0,
+        "author": "Redazione Economia",
+        "published": "2024-09-28T09:30:00Z",
+        "title": "Olio extravergine del Lazio conquista i mercati internazionali",
+        "text": "Il settore oleario del Lazio sta vivendo una fase di crescita straordinaria sui mercati internazionali. Le produzioni DOP Sabina e IGP dei Colli Albani registrano un incremento delle esportazioni del 22% rispetto al 2023, consolidando la posizione della regione come secondo produttore italiano per valore economico. I principali mercati di destinazione sono Germania, Francia e Stati Uniti, dove l'olio laziale è apprezzato per le sue caratteristiche organolettiche uniche e la certificazione di qualità. Il Consorzio di tutela dell'Olio Roma DOP sta investendo in campagne promozionali mirate per far conoscere le eccellenze del territorio.",
+        "highlightText": "olio extravergine del Lazio... DOP Sabina... IGP dei Colli Albani...",
+        "highlightTitle": "Olio extravergine del Lazio",
+        "language": "italian",
+        "external_links": [],
+        "entities": {
+          "persons": [],
+          "organizations": [
+            {"name": "Consorzio di tutela dell'Olio Roma DOP", "sentiment": "positive"}
+          ],
+          "locations": [
+            {"name": "Lazio", "sentiment": "positive"},
+            {"name": "Germania", "sentiment": "neutral"},
+            {"name": "Francia", "sentiment": "neutral"},
+            {"name": "Stati Uniti", "sentiment": "positive"}
+          ]
+        },
+        "social": {
+          "facebook": {"likes": 142, "comments": 28, "shares": 67}
+        },
+        "thread": {
+          "uuid": "thread_webzio_001",
+          "url": "https://www.ilmessaggero.it/economia/",
+          "site_full": "Il Messaggero",
+          "site": "ilmessaggero.it",
+          "site_section": "Economia",
+          "site_categories": ["news", "economia"],
+          "section_title": "Economia",
+          "title": "Notizie economia Italia",
+          "published": "2024-09-28T09:30:00Z",
+          "replies_count": 15,
+          "participants_count": 12,
+          "site_type": "news",
+          "country": "IT",
+          "spam_score": 0.01,
+          "performance_score": 8.7,
+          "domain_rank": 245
+        }
+      },
+      {
+        "uuid": "webzio_mock_002",
+        "url": "https://www.agronotizie.it/tecnica/2024/09/innovazione-frantoi-castelli-romani",
+        "ord_in_thread": 0,
+        "author": "Dott. Marco Rossi",
+        "published": "2024-09-28T07:15:00Z",
+        "title": "Innovazione nei frantoi dei Castelli Romani: tecnologia e tradizione",
+        "text": "I frantoi dei Castelli Romani stanno adottando tecnologie innovative mantenendo le tradizioni secolari di produzione dell'olio IGP. Sistemi di controllo temperatura computerizzati, separatori centrifughi di ultima generazione e tecniche di conservazione in atmosfera controllata stanno rivoluzionando il settore senza compromettere l'autenticità del prodotto. Il frantoio 'Il Colle d'Oro' ha recentemente installato un sistema di tracciabilità blockchain per certificare ogni fase della produzione, dalla raccolta delle olive alla bottiglia finale. Questi investimenti permettono di mantenere inalterate le proprietà organolettiche dell'olio IGP Colli Albani, caratterizzato da note fruttate intense e retrogusto piccante.",
+        "highlightText": "frantoi dei Castelli Romani... olio IGP... Colli Albani...",
+        "highlightTitle": "frantoi dei Castelli Romani",
+        "language": "italian",
+        "entities": {
+          "organizations": [
+            {"name": "Il Colle d'Oro", "sentiment": "positive"}
+          ],
+          "locations": [
+            {"name": "Castelli Romani", "sentiment": "positive"}
+          ]
+        },
+        "thread": {
+          "uuid": "thread_webzio_002",
+          "url": "https://www.agronotizie.it/tecnica/",
+          "site_full": "AgroNotizie",
+          "site": "agronotizie.it",
+          "site_section": "Tecnica",
+          "site_categories": ["news", "agricoltura"],
+          "site_type": "news",
+          "country": "IT",
+          "spam_score": 0.02,
+          "performance_score": 7.9,
+          "domain_rank": 1250
+        }
+      },
+      {
+        "uuid": "webzio_mock_003",
+        "url": "https://blog.gustoblog.it/olio-dop-sabina-caratteristiche-produzione",
+        "ord_in_thread": 0,
+        "author": "Chef Antonio Valenti",
+        "published": "2024-09-27T18:45:00Z",
+        "title": "Olio DOP Sabina: caratteristiche uniche e processo di produzione",
+        "text": "L'olio extravergine DOP Sabina rappresenta una delle eccellenze olearie del Lazio, con caratteristiche organolettiche distintive che lo rendono unico nel panorama nazionale. Prodotto nelle province di Roma e Rieti, questo olio si distingue per il colore verde intenso con riflessi dorati, profumo fruttato di oliva fresca e sapore armonico con note di erba e carciofo. Il disciplinare di produzione prevede l'utilizzo esclusivo di olive Carboncella, Leccino, Raja, Pendolino, Olivastrone e Salviana, raccolte rigorosamente a mano o con mezzi meccanici che non danneggino il frutto. La resa massima consentita è di 25 kg di olio per 100 kg di olive, garantendo così la massima qualità del prodotto finale.",
+        "highlightText": "olio extravergine DOP Sabina... Lazio... province di Roma e Rieti...",
+        "highlightTitle": "Olio DOP Sabina",
+        "language": "italian",
+        "entities": {
+          "locations": [
+            {"name": "Sabina", "sentiment": "positive"},
+            {"name": "Lazio", "sentiment": "positive"},
+            {"name": "Roma", "sentiment": "neutral"},
+            {"name": "Rieti", "sentiment": "neutral"}
+          ]
+        },
+        "thread": {
+          "uuid": "thread_webzio_003",
+          "url": "https://blog.gustoblog.it/",
+          "site_full": "GustoBlog",
+          "site": "gustoblog.it",
+          "site_section": "Blog",
+          "site_categories": ["blog", "cucina"],
+          "site_type": "blogs",
+          "country": "IT",
+          "spam_score": 0.05,
+          "performance_score": 6.8,
+          "domain_rank": 3200
+        }
+      },
+      {
+        "uuid": "webzio_mock_004",
+        "url": "https://www.romatoday.it/eventi/sagra-olio-nuovo-november-castelli-romani",
+        "ord_in_thread": 0,
+        "published": "2024-09-27T14:20:00Z",
+        "title": "Sagra dell'Olio Nuovo: appuntamento a novembre nei Castelli Romani",
+        "text": "Torna la tradizionale Sagra dell'Olio Nuovo nei borghi dei Castelli Romani, dal 15 al 30 novembre 2024. L'evento celebra la nuova produzione di olio IGP con degustazioni guidate, visite ai frantoi storici e incontri con i produttori locali. Protagonista assoluto sarà l'olio IGP Colli Albani, appena spremuto e caratterizzato dal tipico sapore piccante e fruttato. Il programma prevede anche cooking show con chef locali, mercatini di prodotti tipici e percorsi enogastronomici tra le cantine e i frantoi del territorio. L'iniziativa è organizzata dal Comune di Frascati in collaborazione con i Consorzi di tutela.",
+        "highlightText": "Sagra dell'Olio Nuovo... Castelli Romani... olio IGP...",
+        "highlightTitle": "Sagra dell'Olio Nuovo",
+        "language": "italian",
+        "entities": {
+          "organizations": [
+            {"name": "Comune di Frascati", "sentiment": "positive"}
+          ],
+          "locations": [
+            {"name": "Castelli Romani", "sentiment": "positive"},
+            {"name": "Frascati", "sentiment": "positive"}
+          ]
+        },
+        "thread": {
+          "uuid": "thread_webzio_004",
+          "url": "https://www.romatoday.it/eventi/",
+          "site_full": "RomaToday",
+          "site": "romatoday.it",
+          "site_categories": ["news", "eventi", "local"],
+          "site_type": "news",
+          "country": "IT",
+          "spam_score": 0.03,
+          "performance_score": 7.2,
+          "domain_rank": 2800
+        }
+      },
+      {
+        "uuid": "webzio_mock_005",
+        "url": "https://forum.agriturismo-lazio.it/topic/migliori-frantoi-visitare-autunno",
+        "ord_in_thread": 1,
+        "author": "OlioPassion88",
+        "published": "2024-09-27T11:30:00Z",
+        "title": "Consigli sui migliori frantoi da visitare in autunno nel Lazio",
+        "text": "Ciao a tutti! Sto pianificando un tour dei frantoi del Lazio per questo autunno e vorrei dei consigli sui migliori da visitare. Sono particolarmente interessato ai produttori di DOP Sabina e IGP Colli Albani. Ho sentito parlare molto bene del Frantoio Gaudenzi a Canino e dell'Azienda Agricola Monte Frascone. Qualcuno ci è mai stato? Come sono le degustazioni? Inoltre, qualcuno sa se organizzano visite durante la raccolta? Sarebbe fantastico vedere tutto il processo dalla pianta alla bottiglia. Grazie in anticipo per i consigli!",
+        "highlightText": "frantoi del Lazio... DOP Sabina... IGP Colli Albani...",
+        "language": "italian",
+        "entities": {
+          "organizations": [
+            {"name": "Frantoio Gaudenzi", "sentiment": "positive"},
+            {"name": "Azienda Agricola Monte Frascone", "sentiment": "positive"}
+          ],
+          "locations": [
+            {"name": "Lazio", "sentiment": "positive"},
+            {"name": "Canino", "sentiment": "neutral"}
+          ]
+        },
+        "thread": {
+          "uuid": "thread_webzio_005",
+          "url": "https://forum.agriturismo-lazio.it/",
+          "site_full": "Forum Agriturismo Lazio",
+          "site": "agriturismo-lazio.it",
+          "site_categories": ["discussions", "turismo"],
+          "site_type": "discussions",
+          "country": "IT",
+          "spam_score": 0.08,
+          "performance_score": 5.1,
+          "domain_rank": 8500
+        }
+      }
+    ]
+  },
+  "page2": {
+    "totalResults": 1247,
+    "next": "mock_webzio_page_3_token",
+    "posts": [
+      {
+        "uuid": "webzio_mock_006",
+        "url": "https://www.corriere.it/cronache/contraffazione-olio-dop-operazione-guardia-finanza",
+        "ord_in_thread": 0,
+        "author": "Cronaca Roma",
+        "published": "2024-09-26T16:30:00Z",
+        "title": "Contraffazione olio DOP: maxi operazione della Guardia di Finanza",
+        "text": "La Guardia di Finanza ha concluso una vasta operazione contro la contraffazione di olio extravergine DOP che ha portato al sequestro di oltre 8.000 litri di prodotto irregolare. L'inchiesta, coordinata dalla Procura di Roma, ha coinvolto diverse aziende nel Lazio accusate di commercializzare olio comune spacciandolo per DOP Sabina. Le indagini hanno rivelato un sistema fraudolento che prevedeva l'acquisto di olio extravergine di qualità inferiore da altre regioni, successivamente etichettato come DOP Sabina con documenti falsificati. L'operazione tutela sia i consumatori che i produttori onesti che rispettano il disciplinare di produzione.",
+        "highlightText": "olio extravergine DOP... DOP Sabina... Lazio...",
+        "highlightTitle": "Contraffazione olio DOP",
+        "language": "italian",
+        "entities": {
+          "organizations": [
+            {"name": "Guardia di Finanza", "sentiment": "positive"},
+            {"name": "Procura di Roma", "sentiment": "neutral"}
+          ],
+          "locations": [
+            {"name": "Lazio", "sentiment": "negative"},
+            {"name": "Roma", "sentiment": "neutral"}
+          ]
+        },
+        "thread": {
+          "uuid": "thread_webzio_006",
+          "url": "https://www.corriere.it/cronache/",
+          "site_full": "Corriere della Sera",
+          "site": "corriere.it",
+          "site_categories": ["news", "cronaca"],
+          "site_type": "news",
+          "country": "IT",
+          "spam_score": 0.01,
+          "performance_score": 9.2,
+          "domain_rank": 89
+        }
+      }
+    ]
+  }
+}
