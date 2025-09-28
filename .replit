@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "web"]
+modules = ["nodejs-20", "web", "postgresql-16"]
 [agent]
 expertMode = true
 integrations = ["javascript_database:1.0.0"]
@@ -35,14 +35,10 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 43819
-externalPort = 3001
-
-[[ports]]
 localPort = 44835
 externalPort = 3000
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["npm", "start"]
-build = ["npm", "run", "build"]
+run = ["bash", "-c", "cd sistema_monitoraggio_olio/app && npm start"]
+build = ["bash", "-c", "cd sistema_monitoraggio_olio/app && npm run build"]

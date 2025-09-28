@@ -292,22 +292,41 @@ export default function ContenutiPage() {
   };
 
   const getPlatformDisplay = (piattaforma: string) => {
-    // Import mapping inline per semplicità
-    const PLATFORM_DISPLAY_NAMES: Record<string, { name: string; type: 'real' | 'demo'; icon: string; color: string }> = {
-      'webzio_demo': { name: 'Webz.io Demo', type: 'demo', icon: '⚠️', color: 'bg-orange-100 text-orange-800' },
-      'google_news_real': { name: 'Google News', type: 'real', icon: '✅', color: 'bg-green-100 text-green-800' },
-      'reddit_real': { name: 'Reddit', type: 'real', icon: '✅', color: 'bg-green-100 text-green-800' },
-      'google_news': { name: 'Google News Demo', type: 'demo', icon: '⚠️', color: 'bg-orange-100 text-orange-800' },
-      'reddit': { name: 'Reddit Demo', type: 'demo', icon: '⚠️', color: 'bg-orange-100 text-orange-800' },
-      'webzio': { name: 'Webz.io Demo', type: 'demo', icon: '⚠️', color: 'bg-orange-100 text-orange-800' },
-      'multiprovider': { name: 'Multi-Provider Demo', type: 'demo', icon: '⚠️', color: 'bg-orange-100 text-orange-800' }
+    if (!piattaforma) {
+      return {
+        name: 'Sconosciuta',
+        type: 'demo' as const,
+        icon: '🌐',
+        color: 'bg-gray-100 text-gray-800'
+      };
+    }
+    
+    // Semplificata per evitare errori di idratazione
+    if (piattaforma.includes('_real')) {
+      const baseName = piattaforma.replace('_real', '');
+      return {
+        name: baseName === 'google_news' ? 'Google News' : baseName === 'reddit' ? 'Reddit' : baseName,
+        type: 'real' as const,
+        icon: '✅',
+        color: 'bg-green-100 text-green-800'
+      };
+    }
+    
+    // Tutto il resto è demo
+    const demoNames: Record<string, string> = {
+      'webzio': 'Webz.io Demo',
+      'webzio_demo': 'Webz.io Demo',
+      'google_news': 'Google News Demo', 
+      'reddit': 'Reddit Demo',
+      'multi_provider': 'Multi-Provider Demo',
+      'multiprovider': 'Multi-Provider Demo'
     };
     
-    return PLATFORM_DISPLAY_NAMES[piattaforma] || {
-      name: piattaforma,
-      type: 'demo',
-      icon: '🌐',
-      color: 'bg-gray-100 text-gray-800'
+    return {
+      name: demoNames[piattaforma] || `${piattaforma} Demo`,
+      type: 'demo' as const,
+      icon: '⚠️',
+      color: 'bg-orange-100 text-orange-800'
     };
   };
 
@@ -603,26 +622,27 @@ export default function ContenutiPage() {
           </Card>
         ) : (
           contenuti.map((contenuto) => {
-            const platformInfo = getPlatformDisplay(contenuto.piattaforma);
-            return (
-              <Card key={contenuto.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-lg">{platformInfo.icon}</span>
-                      <Badge className={platformInfo.color}>
-                        {platformInfo.name}
-                      </Badge>
-                      <Badge variant="outline">{contenuto.fonte}</Badge>
-                      <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getSentimentColor(contenuto.sentiment)}`}>
-                        {getSentimentIcon(contenuto.sentiment)}
-                        <span>{contenuto.sentiment}</span>
+            try {
+              const platformInfo = getPlatformDisplay(contenuto.piattaforma || '');
+              return (
+                <Card key={contenuto.id}>
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-lg">{platformInfo.icon}</span>
+                        <Badge className={platformInfo.color}>
+                          {platformInfo.name}
+                        </Badge>
+                        <Badge variant="outline">{contenuto.fonte || 'N/A'}</Badge>
+                        <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getSentimentColor(contenuto.sentiment)}`}>
+                          {getSentimentIcon(contenuto.sentiment)}
+                          <span>{contenuto.sentiment}</span>
+                        </div>
                       </div>
-                    </div>
-                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                    <Calendar className="h-4 w-4" />
-                    {format(new Date(contenuto.dataPost), 'PPp', { locale: it })}
-                  </div>
+                      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                        <Calendar className="h-4 w-4" />
+                        {contenuto.dataPost ? format(new Date(contenuto.dataPost), 'PPp', { locale: it }) : 'Data non disponibile'}
+                      </div>
                 </div>
                 <CardDescription>
                   {contenuto.autore && `Da: ${contenuto.autore}`}
@@ -631,10 +651,10 @@ export default function ContenutiPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm mb-4 line-clamp-3">{contenuto.testo}</p>
+                <p className="text-sm mb-4 line-clamp-3">{contenuto.testo || 'Contenuto non disponibile'}</p>
                 <div className="flex items-center justify-between">
                   <div className="flex flex-wrap gap-1">
-                    {contenuto.keywords.map((keyword, index) => (
+                    {(contenuto.keywords || []).map((keyword, index) => (
                       <Badge key={index} variant="secondary" className="text-xs">
                         {keyword}
                       </Badge>
@@ -653,7 +673,17 @@ export default function ContenutiPage() {
                 </div>
               </CardContent>
             </Card>
-            );
+              );
+            } catch (error) {
+              console.error('Errore rendering contenuto:', error);
+              return (
+                <Card key={contenuto.id}>
+                  <CardContent className="p-4">
+                    <p className="text-sm text-muted-foreground">Errore nel caricamento del contenuto</p>
+                  </CardContent>
+                </Card>
+              );
+            }
           })
         )}
       </div>

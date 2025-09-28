@@ -97,14 +97,18 @@ export function normalizeProviderItem(item: ProviderItem, sourceProvider: string
   const sentimentLabel = normalizeSentiment(item.sentiment?.label);
   const sentimentScore = item.sentiment?.score || 0;
   
-  // Determina se è real o demo basato sul successo della chiamata API
-  const isRealData = !item.raw?.__mock_data;
-  const platformKey = PLATFORM_MAPPING[sourceProvider] || sourceProvider;
+  // Determina piattaforma basata su sourceProvider
+  let piattaforma = PLATFORM_MAPPING[sourceProvider] || sourceProvider;
+  
+  // Se è un mock/demo, forza suffisso demo
+  if (item.raw?.__mock_data || sourceProvider === 'webzio') {
+    piattaforma = piattaforma.replace('_real', '_demo');
+  }
   
   return {
     // Campi database ContenutiMonitorati
     fonte: SOURCE_MAPPING[sourceProvider] || 'blog',
-    piattaforma: isRealData ? platformKey : platformKey.replace('_real', '_demo').replace('_demo', '_demo'),
+    piattaforma,
     testo: item.text || item.title || '',
     url: item.url,
     autore: item.author,
