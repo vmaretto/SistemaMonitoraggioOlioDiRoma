@@ -50,11 +50,6 @@ const sidebarItems = [
         href: '/dashboard/keywords',
         icon: Search,
       },
-      {
-        title: 'Integrazione Awario',
-        href: '/dashboard/awario',
-        icon: Globe,
-      },
     ],
   },
   {

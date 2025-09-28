@@ -12,7 +12,7 @@ export type SentimentLabel = 'positivo' | 'neutro' | 'negativo';
 export interface NormalizedMention {
   // Campi database ContenutiMonitorati
   fonte: string;        // social, blog, ecommerce, news
-  piattaforma: string;  // awario, webzio, google_news, reddit
+  piattaforma: string;  // webzio, google_news, reddit
   testo: string;        // contenuto del post/articolo
   url?: string;         // URL originale
   autore?: string;      // autore del contenuto
@@ -23,7 +23,7 @@ export interface NormalizedMention {
   rilevanza: number;    // 0-100
   
   // Metadati aggiuntivi (non database)
-  source: 'awario' | 'webzio' | 'serpapi_google_news' | 'serpapi_reddit';
+  source: 'webzio' | 'serpapi_google_news' | 'serpapi_reddit';
   externalId?: string;
   socialMetrics?: {
     likes?: number;
@@ -59,7 +59,6 @@ export const SENTIMENT_MAPPING: Record<string, SentimentLabel> = {
  */
 export const SOURCE_MAPPING: Record<string, string> = {
   // Provider -> fonte database
-  'awario': 'social',
   'webzio': 'blog', 
   'serpapi_google_news': 'news',
   'serpapi:google_news': 'news',
@@ -71,7 +70,6 @@ export const SOURCE_MAPPING: Record<string, string> = {
  * Mappa piattaforme per database
  */
 export const PLATFORM_MAPPING: Record<string, string> = {
-  'awario': 'awario',
   'webzio': 'webzio',
   'serpapi_google_news': 'google_news',
   'serpapi:google_news': 'google_news',
@@ -134,13 +132,12 @@ function normalizeSentiment(sentiment?: string): SentimentLabel {
 
 function mapToSourceType(provider: string): NormalizedMention['source'] {
   switch (provider) {
-    case 'awario': return 'awario';
     case 'webzio': return 'webzio';
     case 'serpapi:google_news':
     case 'serpapi_google_news': return 'serpapi_google_news';
     case 'serpapi:reddit':
     case 'serpapi_reddit': return 'serpapi_reddit';
-    default: return 'awario';
+    default: return 'webzio';
   }
 }
 

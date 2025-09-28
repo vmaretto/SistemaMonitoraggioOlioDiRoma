@@ -1,6 +1,6 @@
 /**
  * Interfacce comuni per il sistema multi-provider di monitoraggio
- * Supporta Awario, Webz.io, SerpApi (Google News + Reddit)
+ * Supporta Webz.io, SerpApi (Google News + Reddit)
  */
 
 export type ProviderItem = {
@@ -33,7 +33,7 @@ export interface Provider {
     results: ProviderItem[]; 
     next?: string 
   }>;
-  id: string; // es: "awario" | "webzio" | "serpapi:google_news" | "serpapi:reddit"
+  id: string; // es: "webzio" | "serpapi:google_news" | "serpapi:reddit"
 }
 
 /**

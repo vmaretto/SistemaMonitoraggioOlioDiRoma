@@ -39,7 +39,7 @@ export default function ContenutiPage() {
   const [filterKeyword, setFilterKeyword] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [awarioStats, setAwarioStats] = useState<any>(null);
+  const [providerStats, setProviderStats] = useState<any>(null);
   const [syncLoading, setSyncLoading] = useState(false);
   const [aiTestLoading, setAiTestLoading] = useState(false);
   const [aiStatus, setAiStatus] = useState<string>('unknown');
@@ -49,7 +49,7 @@ export default function ContenutiPage() {
 
   useEffect(() => {
     fetchContenuti();
-    fetchAwarioStats();
+    fetchProviderStats();
     checkAiStatus();
   }, [currentPage, filterSentiment, filterFonte, filterKeyword, searchTerm]);
 
@@ -76,36 +76,41 @@ export default function ContenutiPage() {
     }
   };
 
-  const fetchAwarioStats = async () => {
+  const fetchProviderStats = async () => {
     try {
-      const response = await fetch('/api/awario/sync');
+      const response = await fetch('/api/providers/test');
       if (response.ok) {
         const data = await response.json();
-        setAwarioStats(data);
+        setProviderStats(data);
       }
     } catch (error) {
-      console.error('Errore caricamento stats Awario:', error);
+      console.error('Errore caricamento stats provider:', error);
     }
   };
 
-  const syncAwario = async () => {
+  const syncMultiProvider = async () => {
     try {
       setSyncLoading(true);
-      const response = await fetch('/api/awario/sync', {
-        method: 'POST'
+      const response = await fetch('/api/ingestion/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profile: 'brand_monitoring',
+          options: { maxItemsPerProvider: 20, mockMode: true }
+        })
       });
       const result = await response.json();
       
       if (response.ok && result.success) {
         await fetchContenuti();
-        await fetchAwarioStats();
+        await fetchProviderStats();
         alert(`✅ ${result.message}`);
       } else {
         alert(`❌ Errore: ${result.message || result.error}`);
       }
     } catch (error) {
-      console.error('Errore sincronizzazione Awario:', error);
-      alert('❌ Errore durante la sincronizzazione Awario');
+      console.error('Errore sincronizzazione multi-provider:', error);
+      alert('❌ Errore durante la sincronizzazione multi-provider');
     } finally {
       setSyncLoading(false);
     }
@@ -157,7 +162,7 @@ export default function ContenutiPage() {
       if (response.ok) {
         // Ricarica tutti i dati dopo il caricamento
         await fetchContenuti();
-        await fetchAwarioStats();
+        await fetchProviderStats();
         alert(`✅ ${result.message}\n\nDettagli:\n${Object.entries(result.details).map(([k,v]) => `• ${k}: ${v}`).join('\n')}`);
       } else {
         alert(`❌ Errore: ${result.error}`);
@@ -399,15 +404,15 @@ export default function ContenutiPage() {
             </p>
             <div className="flex space-x-2">
               <Button 
-                onClick={syncAwario}
-                variant={awarioStats?.connection?.success ? "default" : "outline"}
+                onClick={syncMultiProvider}
+                variant={providerStats?.success ? "default" : "outline"}
                 size="sm"
                 disabled={syncLoading || loading}
               >
                 {syncLoading ? (
-                  <>🔄 Sync Awario...</>
+                  <>🔄 Sync Multi-Provider...</>
                 ) : (
-                  <>🌐 Sincronizza Awario</>
+                  <>🌐 Sincronizza Provider</>
                 )}
               </Button>
               <Button 
@@ -445,31 +450,31 @@ export default function ContenutiPage() {
 
       {/* Stato Sistemi */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        {/* Stato Awario */}
-        {awarioStats && (
-          <Card className={`${awarioStats.connection?.success ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
+        {/* Stato Multi-Provider */}
+        {providerStats && (
+          <Card className={`${providerStats.success ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-full ${awarioStats.connection?.success ? 'bg-green-100' : 'bg-orange-100'}`}>
-                    <div className={`h-3 w-3 rounded-full ${awarioStats.connection?.success ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+                  <div className={`p-2 rounded-full ${providerStats.success ? 'bg-green-100' : 'bg-orange-100'}`}>
+                    <div className={`h-3 w-3 rounded-full ${providerStats.success ? 'bg-green-500' : 'bg-orange-500'}`}></div>
                   </div>
                   <div>
-                    <h4 className={`text-sm font-semibold ${awarioStats.connection?.success ? 'text-green-900' : 'text-orange-900'}`}>
-                      🌐 Awario API: {awarioStats.connection?.success ? 'Connesso' : 'Demo Mode'}
+                    <h4 className={`text-sm font-semibold ${providerStats.success ? 'text-green-900' : 'text-orange-900'}`}>
+                      🔗 Multi-Provider: {providerStats.success ? 'Attivo' : 'Demo Mode'}
                     </h4>
-                    <p className={`text-xs ${awarioStats.connection?.success ? 'text-green-700' : 'text-orange-700'}`}>
-                      {awarioStats.connection?.message}
+                    <p className={`text-xs ${providerStats.success ? 'text-green-700' : 'text-orange-700'}`}>
+                      {providerStats.message || 'Provider Webz.io & SerpApi'}
                     </p>
                   </div>
                 </div>
-                {awarioStats.stats && (
+                {providerStats.providers && (
                   <div className="text-right">
                     <p className="text-xs text-muted-foreground">
-                      Tot: <strong>{awarioStats.stats.totalContents}</strong>
+                      Webzio: <strong>{providerStats.providers.webzio ? '✅' : '❌'}</strong>
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      24h: <strong>{awarioStats.stats.recentContents}</strong>
+                      SerpApi: <strong>{(providerStats.providers.serpapi_google_news && providerStats.providers.serpapi_reddit) ? '✅' : '❌'}</strong>
                     </p>
                   </div>
                 )}
