@@ -1,6 +1,12 @@
 {
   "/page": "app/page.js",
+  "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
+  "/api/awario/sync/route": "app/api/awario/sync/route.js",
+  "/api/contenuti/route": "app/api/contenuti/route.js",
+  "/api/ai-test/route": "app/api/ai-test/route.js",
   "/dashboard/page": "app/dashboard/page.js",
   "/dashboard/reports/page": "app/dashboard/reports/page.js",
-  "/dashboard/reports/[id]/page": "app/dashboard/reports/[id]/page.js"
+  "/dashboard/reports/[id]/page": "app/dashboard/reports/[id]/page.js",
+  "/dashboard/awario/page": "app/dashboard/awario/page.js",
+  "/dashboard/contenuti/page": "app/dashboard/contenuti/page.js"
 }
