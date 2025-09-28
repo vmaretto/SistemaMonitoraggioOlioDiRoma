@@ -12,6 +12,7 @@ interface SerpApiConfig {
   apiKey: string;
   baseUrl: string;
   mockMode: boolean;
+  timeout?: number;
 }
 
 interface SerpApiResponse {
@@ -79,11 +80,12 @@ export class SerpApiGoogleNewsProvider implements Provider {
     factor: 2
   };
 
-  constructor() {
+  constructor(config: Partial<SerpApiConfig> = {}) {
     this.config = {
-      apiKey: process.env.SERPAPI_KEY || '',
-      baseUrl: process.env.SERPAPI_BASE_URL || 'https://serpapi.com/search.json',
-      mockMode: process.env.SERPAPI_MOCK === '1' || !process.env.SERPAPI_KEY
+      apiKey: config.apiKey || process.env.SERPAPI_KEY || '',
+      baseUrl: config.baseUrl || process.env.SERPAPI_BASE_URL || 'https://serpapi.com/search.json',
+      mockMode: config.mockMode ?? (process.env.SERPAPI_MOCK === '1' || !process.env.SERPAPI_KEY),
+      timeout: config.timeout || parseInt(process.env.SERPAPI_TIMEOUT || '30000')
     };
 
     if (this.config.mockMode) {
@@ -135,7 +137,7 @@ export class SerpApiGoogleNewsProvider implements Provider {
 
       const response = await axios.get(this.config.baseUrl, {
         params: queryParams,
-        timeout: 30000,
+        timeout: this.config.timeout || 30000,
         headers: {
           'User-Agent': 'OlioMonitoringSystem/1.0'
         }
@@ -281,7 +283,7 @@ export class SerpApiGoogleNewsProvider implements Provider {
           q: 'test',
           num: 1
         },
-        timeout: 10000
+        timeout: Math.min(this.config.timeout || 10000, 10000)
       });
 
       if (response.status === 200) {
@@ -317,11 +319,12 @@ export class SerpApiRedditProvider implements Provider {
     factor: 2
   };
 
-  constructor() {
+  constructor(config: Partial<SerpApiConfig> = {}) {
     this.config = {
-      apiKey: process.env.SERPAPI_KEY || '',
-      baseUrl: process.env.SERPAPI_BASE_URL || 'https://serpapi.com/search.json',
-      mockMode: process.env.SERPAPI_MOCK === '1' || !process.env.SERPAPI_KEY
+      apiKey: config.apiKey || process.env.SERPAPI_KEY || '',
+      baseUrl: config.baseUrl || process.env.SERPAPI_BASE_URL || 'https://serpapi.com/search.json',
+      mockMode: config.mockMode ?? (process.env.SERPAPI_MOCK === '1' || !process.env.SERPAPI_KEY),
+      timeout: config.timeout || parseInt(process.env.SERPAPI_TIMEOUT || '30000')
     };
 
     if (this.config.mockMode) {
@@ -371,7 +374,7 @@ export class SerpApiRedditProvider implements Provider {
 
       const response = await axios.get(this.config.baseUrl, {
         params: queryParams,
-        timeout: 30000,
+        timeout: this.config.timeout || 30000,
         headers: {
           'User-Agent': 'OlioMonitoringSystem/1.0'
         }
@@ -532,7 +535,7 @@ export class SerpApiRedditProvider implements Provider {
           q: 'test',
           sort: 'new'
         },
-        timeout: 10000
+        timeout: Math.min(this.config.timeout || 10000, 10000)
       });
 
       if (response.status === 200) {

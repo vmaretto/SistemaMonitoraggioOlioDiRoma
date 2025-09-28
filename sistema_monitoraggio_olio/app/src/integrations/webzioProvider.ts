@@ -12,6 +12,7 @@ interface WebzioConfig {
   token: string;
   baseUrl: string;
   mockMode: boolean;
+  timeout?: number;
 }
 
 interface WebzioResponse {
@@ -73,11 +74,12 @@ export class WebzioProvider implements Provider {
     factor: 2
   };
 
-  constructor() {
+  constructor(config: Partial<{ apiKey: string; baseUrl?: string; mockMode: boolean; timeout?: number }> = {}) {
     this.config = {
-      token: process.env.WEBZIO_TOKEN || '',
-      baseUrl: process.env.WEBZIO_BASE_URL || 'https://api.webz.io/filterWebContent',
-      mockMode: process.env.WEBZIO_MOCK === '1' || !process.env.WEBZIO_TOKEN
+      token: config.apiKey || process.env.WEBZIO_TOKEN || '',
+      baseUrl: config.baseUrl || process.env.WEBZIO_BASE_URL || 'https://api.webz.io/filterWebContent',
+      mockMode: config.mockMode ?? (process.env.WEBZIO_MOCK === '1' || !process.env.WEBZIO_TOKEN),
+      timeout: config.timeout || parseInt(process.env.WEBZIO_TIMEOUT || '30000')
     };
 
     if (this.config.mockMode) {
@@ -121,7 +123,7 @@ export class WebzioProvider implements Provider {
       
       const response = await axios.get(this.config.baseUrl, {
         params: queryParams,
-        timeout: 30000,
+        timeout: this.config.timeout || 30000,
         headers: {
           'User-Agent': 'OlioMonitoringSystem/1.0'
         }
@@ -369,7 +371,7 @@ export class WebzioProvider implements Provider {
           size: 1,
           format: 'json'
         },
-        timeout: 10000
+        timeout: Math.min(this.config.timeout || 10000, 10000)
       });
 
       if (response.status === 200) {

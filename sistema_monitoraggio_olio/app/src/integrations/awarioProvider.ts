@@ -9,6 +9,7 @@ interface AwarioConfig {
   apiKey: string;
   baseUrl: string;
   mockMode: boolean;
+  timeout?: number;
 }
 
 interface AwarioMention {
@@ -40,11 +41,12 @@ export class AwarioProvider implements Provider {
   public readonly id = 'awario';
   private config: AwarioConfig;
 
-  constructor() {
+  constructor(config: Partial<AwarioConfig> = {}) {
     this.config = {
-      apiKey: process.env.AWARIO_API_KEY || '',
-      baseUrl: process.env.AWARIO_BASE_URL || 'https://api.awario.com/v1',
-      mockMode: process.env.AWARIO_MOCK === '1' || !process.env.AWARIO_API_KEY
+      apiKey: config.apiKey || process.env.AWARIO_API_KEY || '',
+      baseUrl: config.baseUrl || process.env.AWARIO_BASE_URL || 'https://api.awario.com/v1',
+      mockMode: config.mockMode ?? (process.env.AWARIO_MOCK === '1' || !process.env.AWARIO_API_KEY),
+      timeout: config.timeout || parseInt(process.env.AWARIO_TIMEOUT || '30000')
     };
 
     if (this.config.mockMode) {
