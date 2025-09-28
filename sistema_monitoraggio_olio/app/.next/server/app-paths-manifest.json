@@ -1,16 +1,3 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/page": "app/page.js",
-  "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
-  "/api/awario/sync/route": "app/api/awario/sync/route.js",
-  "/api/ai-test/route": "app/api/ai-test/route.js",
-  "/api/contenuti/route": "app/api/contenuti/route.js",
-  "/dashboard/page": "app/dashboard/page.js",
-  "/dashboard/contenuti/page": "app/dashboard/contenuti/page.js",
-  "/dashboard/sentiment/page": "app/dashboard/sentiment/page.js",
-  "/dashboard/keywords/page": "app/dashboard/keywords/page.js",
-  "/dashboard/awario/page": "app/dashboard/awario/page.js",
-  "/dashboard/configurazioni/page": "app/dashboard/configurazioni/page.js",
-  "/dashboard/notifiche/page": "app/dashboard/notifiche/page.js",
-  "/dashboard/report/page": "app/dashboard/report/page.js"
+  "/page": "app/page.js"
 }

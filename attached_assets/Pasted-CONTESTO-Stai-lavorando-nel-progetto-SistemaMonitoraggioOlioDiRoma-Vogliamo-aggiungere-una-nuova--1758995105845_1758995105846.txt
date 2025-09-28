@@ -1,0 +1,189 @@
+CONTESTO
+Stai lavorando nel progetto “SistemaMonitoraggioOlioDiRoma”. Vogliamo aggiungere una nuova funzionalità completa chiamata “Tracciabilità attività ispettori” per gestire il workflow delle segnalazioni con audit trail.
+OBIETTIVO
+Implementa: schema dati, migrazioni, seed, API REST, UI (lista + dettaglio con timeline e azioni), validazioni delle transizioni di stato, allegati base. Stack preferito: Node.js + Express + SQLite + Prisma sul backend e React/Next.js sul frontend (adatta al progetto se già usa questi). Tutto deve essere idempotente (ri-eseguibile senza rompere nulla).
+WORKFLOW DA IMPLEMENTARE (macchina a stati)
+Stati ReportStatus:
+ANALISI (default)
+ARCHIVIATA
+IN_CONTROLLO
+VERIFICA_SOPRALLUOGO
+VERIFICA_CHIARIMENTI
+SEGNALATA_A_ENTE
+IN_ATTESA_FEEDBACK_ENTE
+CHIUSA
+Transizioni consentite:
+ANALISI → ARCHIVIATA
+ANALISI → IN_CONTROLLO
+IN_CONTROLLO → SEGNALATA_A_ENTE → IN_ATTESA_FEEDBACK_ENTE → CHIUSA
+IN_CONTROLLO → VERIFICA_SOPRALLUOGO → (verbale) → CHIUSA oppure SEGNALATA_A_ENTE
+IN_CONTROLLO → VERIFICA_CHIARIMENTI → (feedback) → CHIUSA oppure SEGNALATA_A_ENTE
+Ogni azione deve scrivere una riga append-only in ActionLog (timeline).
+SCHEMA DATI (Prisma)
+Crea/aggiorna prisma/schema.prisma con i seguenti modelli:
+model Report {
+  id              String        @id @default(cuid())
+  title           String
+  description     String
+  createdAt       DateTime      @default(now())
+  createdById     String
+  status          ReportStatus  @default(ANALISI)
+  inspections     Inspection[]
+  clarifications  ClarificationRequest[]
+  authorityNotices AuthorityNotice[]
+  actions         ActionLog[]
+  attachments     Attachment[]
+}
+
+enum ReportStatus {
+  ANALISI
+  ARCHIVIATA
+  IN_CONTROLLO
+  VERIFICA_SOPRALLUOGO
+  VERIFICA_CHIARIMENTI
+  SEGNALATA_A_ENTE
+  IN_ATTESA_FEEDBACK_ENTE
+  CHIUSA
+}
+
+model ActionLog {
+  id          String   @id @default(cuid())
+  reportId    String
+  type        String   // es.: ANALISI_AVVIATA, ARCHIVIAZIONE, AVVIO_CONTROLLO, INVIO_A_ENTE, SOPRALLUOGO_VERBALE, RICHIESTA_CHIARIMENTI, FEEDBACK_ENTE, CHIUSURA
+  message     String
+  meta        Json?
+  createdAt   DateTime @default(now())
+  actorId     String
+  report      Report   @relation(fields: [reportId], references: [id])
+}
+
+model Inspection {
+  id          String   @id @default(cuid())
+  reportId    String
+  date        DateTime
+  inspectorId String
+  location    String?
+  minutesText String?  // verbale
+  outcome     String?  // esito breve
+  createdAt   DateTime @default(now())
+  report      Report   @relation(fields: [reportId], references: [id])
+  attachments Attachment[]
+}
+
+model ClarificationRequest {
+  id          String   @id @default(cuid())
+  reportId    String
+  requestedAt DateTime @default(now())
+  requestedBy String
+  question    String
+  dueAt       DateTime?
+  feedbackAt  DateTime?
+  feedback    String?
+  outcome     String?  // CHIUSA o SEGNALATA_A_ENTE
+  report      Report   @relation(fields: [reportId], references: [id])
+  attachments Attachment[]
+}
+
+model AuthorityNotice {
+  id           String   @id @default(cuid())
+  reportId     String
+  sentAt       DateTime @default(now())
+  sentBy       String
+  authority    String
+  protocol     String?
+  feedbackAt   DateTime?
+  feedback     String?
+  report       Report   @relation(fields: [reportId], references: [id])
+  attachments  Attachment[]
+}
+
+model Attachment {
+  id         String   @id @default(cuid())
+  reportId   String
+  entityType String   // REPORT | INSPECTION | CLARIFICATION | AUTHORITY_NOTICE
+  entityId   String
+  filename   String
+  url        String
+  uploadedBy String
+  uploadedAt DateTime @default(now())
+  report     Report   @relation(fields: [reportId], references: [id])
+}
+
+model User {
+  id    String @id @default(cuid())
+  name  String
+  email String @unique
+  role  Role
+}
+
+enum Role {
+  ANALYST
+  INSPECTOR
+  ADMIN
+}
+Esegui: install dipendenze, prisma migrate dev --name init_trace, e genera seed con:
+2 utenti (analyst, inspector)
+5 report (stati vari)
+almeno 1 sopralluogo con verbale fittizio
+action log coerenti
+API REST (Express, prefisso /api)
+Implementa gli endpoint:
+GET /api/reports?status= → lista sintetica
+GET /api/reports/:id → dettaglio con actions, attachments
+POST /api/reports → crea (status=ANALISI)
+POST /api/reports/:id/transition → valida e applica transizione { "to": "<STATUS>", "note": "..." } scrivendo ActionLog
+Blocca transizioni non ammesse
+Se to=ARCHIVIATA solo da ANALISI
+Se to=VERIFICA_SOPRALLUOGO o to=VERIFICA_CHIARIMENTI solo da IN_CONTROLLO
+Se to=SEGNALATA_A_ENTE imposta anche IN_ATTESA_FEEDBACK_ENTE e crea AuthorityNotice (vedi sotto)
+Sopralluoghi
+POST /api/reports/:id/inspections body: { date, location?, minutesText?, outcome? } → crea Inspection + ActionLog
+POST /api/reports/:id/close-from-inspection { note } → richiede che esista almeno un Inspection con minutesText non vuoto, porta a CHIUSA + ActionLog
+POST /api/reports/:id/inspection-to-authority { authority, protocol? } → crea AuthorityNotice e imposta IN_ATTESA_FEEDBACK_ENTE
+Chiarimenti
+POST /api/reports/:id/clarifications { question, dueAt? } → crea ClarificationRequest + ActionLog
+POST /api/clarifications/:cid/feedback { feedback, outcome } con outcome in {CHIUSA,SEGNALATA_A_ENTE} → se SEGNALATA_A_ENTE, crea AuthorityNotice e stato IN_ATTESA_FEEDBACK_ENTE
+Segnalazione a ente & feedback
+POST /api/reports/:id/authority-notices { authority, protocol? } → crea e imposta IN_ATTESA_FEEDBACK_ENTE + ActionLog
+POST /api/authority-notices/:nid/feedback { feedback } → aggiorna record, imposta report CHIUSA + ActionLog
+Allegati (stub)
+POST /api/attachments (multipart o JSON finto) con { reportId, entityType, entityId, filename, url } → salva record + ActionLog
+GET /api/reports/:id/attachments
+VALIDAZIONI CHIAVE
+Transizioni non ammesse → 400 con messaggio chiaro
+close-from-inspection richiede minutesText compilato
+Chiarimenti: per chiudere/mandare a ente serve feedback
+SEGNALATA_A_ENTE crea immediatamente AuthorityNotice e stato IN_ATTESA_FEEDBACK_ENTE
+UI (React/Next.js)
+Aggiungi una nuova sezione nel frontend:
+Route /reports → ReportList con filtri per stato (pill) e tabella con: ID, titolo, stato, ultima azione, assegnatario.
+Route /reports/:id → ReportDetail con:
+header con stato attuale e solo i bottoni delle azioni valide (render condizionale)
+Timeline verticale dagli ActionLog (data, attore, tipo, note, meta, link allegati)
+pannelli modali per: Avvia controllo, Crea sopralluogo, Richiedi chiarimenti, Invia a ente, Registra feedback (ente/chiarimenti), Chiudi segnalazione
+sezione Allegati con upload (anche finto, salva URL in DB)
+TEST RAPIDI (curl)
+Crea nel repo un file scripts/test_api.sh con esempi:
+curl -s http://localhost:3000/api/reports | jq
+curl -s -X POST http://localhost:3000/api/reports -H "Content-Type: application/json" -d '{"title":"Segnalazione prova","description":"...","createdById":"ANALYST_1"}' | jq
+# Transizione a IN_CONTROLLO
+curl -s -X POST http://localhost:3000/api/reports/REPORT_ID/transition -H "Content-Type: application/json" -d '{"to":"IN_CONTROLLO","note":"analisi completata"}' | jq
+# Crea sopralluogo
+curl -s -X POST http://localhost:3000/api/reports/REPORT_ID/inspections -H "Content-Type: application/json" -d '{"date":"2025-06-30T10:00:00Z","location":"Frantoio X","minutesText":"Verbale..."}' | jq
+# Chiudi da sopralluogo
+curl -s -X POST http://localhost:3000/api/reports/REPORT_ID/close-from-inspection -H "Content-Type: application/json" -d '{"note":"ok"}' | jq
+Sostituisci REPORT_ID a runtime.
+ACCETTANCE CRITERIA
+Migrazioni e seed funzionano su Replit.
+API rispondono e rispettano le regole di transizione.
+Ogni azione scrive un ActionLog visibile nella Timeline.
+Da UI posso: filtrare, aprire un report, eseguire azioni ammesse, vedere Timeline e Allegati.
+Re-run del setup non rompe nulla (idempotente).
+OPERATIVA
+Aggiungi/aggiorna dipendenze: express, @prisma/client, prisma, multer (se usi upload), cors.
+Scrivi router REST in /server/routes/reports.ts (o percorso coerente).
+Integra nel server esistente su porta 3000.
+Frontend: crea pagine/route e componenti indicati.
+Aggiungi seed in prisma/seed.ts e script npm run seed.
+Fornisci README sezione “Tracciabilità ispettori” con comandi: npm i, npx prisma migrate dev, npm run seed, npm run dev.
+Consegna PR con: codice, migrazioni, seed, note README, e screenshot UI (facoltativo).
