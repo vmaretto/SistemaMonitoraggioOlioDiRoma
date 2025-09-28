@@ -1,14 +1,18 @@
 {
-  "name": "workspace",
+  "name": "sistema-monitoraggio-olio",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "build": "cd sistema_monitoraggio_olio/app && npm run build",
+    "start": "cd sistema_monitoraggio_olio/app && npm start",
+    "dev": "cd sistema_monitoraggio_olio/app && npm run dev",
+    "postinstall": "cd sistema_monitoraggio_olio/app && npm install --legacy-peer-deps",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Sistema di Monitoraggio Olio - Consorzio Roma-Lazio",
   "dependencies": {
     "@esbuild/linux-x64": "^0.25.9",
     "axios": "^1.12.2",

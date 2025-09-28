@@ -40,5 +40,5 @@ externalPort = 3000
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["bash", "-c", "cd sistema_monitoraggio_olio/app && npm start"]
-build = ["bash", "-c", "cd sistema_monitoraggio_olio/app && npm run build"]
+run = ["npm", "start"]
+build = ["npm", "run", "build"]
