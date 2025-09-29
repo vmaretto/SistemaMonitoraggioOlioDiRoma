@@ -22,29 +22,29 @@ args = "NextJS Server"
 name = "NextJS Server"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "webview"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd sistema_monitoraggio_olio/app && npm run dev"
 waitForPort = 5000
 
-[workflows.workflow.metadata]
-outputType = "webview"
+[[ports]]
+localPort = 3000
+externalPort = 3002
 
 [[ports]]
 localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 5555
-externalPort = 3003
-
-[[ports]]
 localPort = 34761
 externalPort = 3001
 
 [[ports]]
-localPort = 40037
-externalPort = 3002
+localPort = 35797
+externalPort = 3003
 
 [[ports]]
 localPort = 44835
