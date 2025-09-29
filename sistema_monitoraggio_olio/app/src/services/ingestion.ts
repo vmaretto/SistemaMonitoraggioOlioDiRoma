@@ -378,7 +378,7 @@ export class MultiProviderIngestionService {
     
     // Normalizzazione
     const normalized = allItems
-      .map(item => normalizeItem(item, 'multi_provider'))
+      .map(item => normalizeItem(item, item.raw?.sourceProvider || 'multi_provider'))
       .filter((item): item is NormalizedMention => item !== null);
     
     console.log(`✓ ${normalized.length} item normalizzati`);

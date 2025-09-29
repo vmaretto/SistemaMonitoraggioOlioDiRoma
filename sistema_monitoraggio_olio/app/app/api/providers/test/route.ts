@@ -15,12 +15,17 @@ export async function GET() {
     
     const results = await ingestionService.testAllProviders();
     
-    const totalProviders = Object.keys(results).length;
-    const workingProviders = Object.values(results).filter(Boolean).length;
+    // Raggruppa i provider logici: Webz.io (1) + SerpAPI (1 = google_news + reddit)
+    const webzioWorking = results.webzio || false;
+    const serpapiWorking = (results.serpapi_google_news || results.serpapi_reddit) || false;
+    
+    const logicalProviders = [webzioWorking, serpapiWorking];
+    const totalLogicalProviders = 2; // Webz.io + SerpAPI
+    const workingLogicalProviders = logicalProviders.filter(Boolean).length;
     
     const response = {
-      success: totalProviders > 0,
-      message: `${workingProviders}/${totalProviders} provider funzionanti`,
+      success: workingLogicalProviders > 0,
+      message: `${workingLogicalProviders}/${totalLogicalProviders} provider funzionanti`,
       providers: results,
       details: {
         webzio: results.webzio ? 'Connesso' : 'Errore connessione',
@@ -29,7 +34,7 @@ export async function GET() {
       }
     };
     
-    console.log(`✅ Test completato: ${workingProviders}/${totalProviders} provider funzionanti`);
+    console.log(`✅ Test completato: ${workingLogicalProviders}/${totalLogicalProviders} provider funzionanti`);
     
     return NextResponse.json(response);
     

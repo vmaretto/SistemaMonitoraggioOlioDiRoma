@@ -98,7 +98,7 @@ export default function ContenutiPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           profile: 'brand_monitoring',
-          options: { maxItemsPerProvider: 20, mockMode: true }
+          options: { maxItemsPerProvider: 20 }
         })
       });
       const result = await response.json();
@@ -515,7 +515,11 @@ export default function ContenutiPage() {
                       Webzio: <strong>{providerStats.providers.webzio ? '✅' : '❌'}</strong>
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      SerpApi: <strong>{(providerStats.providers.serpapi_google_news && providerStats.providers.serpapi_reddit) ? '✅' : '❌'}</strong>
+                      SerpApi: <strong>{
+                        (providerStats.providers.serpapi_google_news && providerStats.providers.serpapi_reddit) ? '✅ (2/2)' :
+                        (providerStats.providers.serpapi_google_news || providerStats.providers.serpapi_reddit) ? '⚡ (1/2)' : 
+                        '❌ (0/2)'
+                      }</strong>
                     </p>
                   </div>
                 )}
