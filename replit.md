@@ -6,13 +6,14 @@ The application serves as a centralized hub for analyzing online content sentime
 
 ## Recent Changes
 
-- **October 12, 2025 (Latest)**: ✅ **FIXED Critical React Hydration Bug**
-  - **Issue**: Application showed blank pages and "Invalid hook call" errors blocking all interactivity
-  - **Root Cause**: Providers component had mount-checking logic (`if (!mounted) return null`) causing server/client mismatch
-  - **Solution**: Removed useState/useEffect mount guard - server and client now render identical markup
-  - **Impact**: All pages now render correctly, dropzone and interactive features fully functional
-  - **Added**: Debug logging and fallback file input for label verification page
-  - **Status**: Verified by architect - no regressions, follows Next.js best practices
+- **October 12, 2025 (Latest)**: ✅ **FIXED Critical Next.js Configuration & Hydration Issues**
+  - **Root Cause**: Custom `distDir`, `output`, and `experimental.outputFileTracingRoot` in next.config.js caused webpack chunk 404 errors (app-pages-internals.js, app/page.js, app/layout.js not found)
+  - **Impact of 404s**: JavaScript bundles failed to load → React hooks not initialized → "Invalid hook call" errors → Complete hydration failure → Blank pages and no interactivity
+  - **Solution**: Simplified next.config.js to minimal Replit-compatible configuration (removed custom distDir/output, kept reactStrictMode, swcMinify, cache headers)
+  - **Label Verification Page**: Replaced react-dropzone with native HTML file input using useRef for better SSR/hydration compatibility
+  - **Result**: ✅ All pages load correctly, ✅ No chunk 404 errors, ✅ No hydration errors, ✅ All interactive features functional
+  - **Status**: Verified by architect - follows Next.js + Replit best practices
+  - **Important**: Never re-add custom `distDir` or `output` to next.config.js - causes chunk loading failures on Replit
 
 - **October 12, 2025**: ✅ **COMPLETED Migration from AbacusAI to OpenAI GPT-5 + Performance Optimization**
   - Replaced all AbacusAI integrations with OpenAI GPT-5 and GPT-5 Vision
