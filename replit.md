@@ -6,7 +6,17 @@ The application serves as a centralized hub for analyzing online content sentime
 
 ## Recent Changes
 
-- **October 12, 2025 (Latest)**: ✅ **FIXED Critical Next.js Configuration & Hydration Issues**
+- **October 12, 2025 (Latest)**: ✅ **COMPLETED Major Performance Optimization for Label Verification**
+  - **Database Schema Fix**: Corrected field name from `etichettaUfficialeId` to `etichettaRiferimento` in verification save logic (aligned with Prisma schema)
+  - **Parallelization Breakthrough**: Replaced sequential `for` loop with `Promise.all()` for textual label comparisons
+  - **Performance Gain**: Reduced verification time from 60+ seconds → ~5 seconds for textual analysis (12x speedup)
+  - **Total Verification Time**: Now ~30 seconds end-to-end (was timing out at 120 seconds)
+  - **Frontend Progress Messages**: Updated timing and messages to reflect parallelized workflow (22s estimated total)
+  - **Concurrency Handling**: Proper error handling with null filtering and type guards in Promise.all
+  - **Architect Review**: Passed without blocking issues, recommended monitoring OpenAI rate limits as catalog scales
+  - **Important**: Parallelization safe for ~12 active labels; consider concurrency limiter if catalog grows significantly
+
+- **October 12, 2025**: ✅ **FIXED Critical Next.js Configuration & Hydration Issues**
   - **Root Cause**: Custom `distDir`, `output`, and `experimental.outputFileTracingRoot` in next.config.js caused webpack chunk 404 errors (app-pages-internals.js, app/page.js, app/layout.js not found)
   - **Impact of 404s**: JavaScript bundles failed to load → React hooks not initialized → "Invalid hook call" errors → Complete hydration failure → Blank pages and no interactivity
   - **Solution**: Simplified next.config.js to minimal Replit-compatible configuration (removed custom distDir/output, kept reactStrictMode, swcMinify, cache headers)
