@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -191,6 +191,15 @@ export default function VerifyEtichettaPage() {
     setError(null);
   };
 
+  // Fallback: handler per input file classico
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      console.log('📁 File selezionato tramite input:', files[0]);
+      onDrop([files[0]]);
+    }
+  };
+
   return (
     <div className="container mx-auto p-6">
       <div className="flex items-center justify-between mb-6">
@@ -250,6 +259,20 @@ export default function VerifyEtichettaPage() {
                   <div className="text-sm text-gray-500">
                     <p>Formati supportati: PNG, JPG, GIF, WebP</p>
                     <p>Dimensione massima: 10MB</p>
+                  </div>
+                  
+                  <div className="mt-6">
+                    <label htmlFor="file-upload-fallback" className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 cursor-pointer transition-colors">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Oppure clicca qui per selezionare
+                    </label>
+                    <input
+                      id="file-upload-fallback"
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                      onChange={handleFileInput}
+                      className="hidden"
+                    />
                   </div>
                 </div>
               )}
