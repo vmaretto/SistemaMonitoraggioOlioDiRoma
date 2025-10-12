@@ -6,7 +6,26 @@ The application serves as a centralized hub for analyzing online content sentime
 
 ## Recent Changes
 
-- **October 12, 2025 (Latest)**: ✅ **RESOLVED Next.js Chunk Loading & Hydration Errors**
+- **October 12, 2025 (Latest)**: ✅ **IMPLEMENTED Real-Time Progress with Server-Sent Events (SSE)**
+  - **Problem**: Progress messages used setTimeout with fixed timings → not synchronized with actual backend progress → confusing UX
+  - **Solution**: Replaced JSON response with Server-Sent Events streaming for real-time updates
+  - **Backend Changes**:
+    - Converted API to return `ReadableStream` with `Content-Type: text/event-stream`
+    - Helper function `sendSSE()` to format events as `data: {json}\n\n`
+    - 5 progress events sent during analysis: OCR (10%), Conformità (25%), Confronto testuale (40%), Confronto visivo (65%), Salvataggio (85%)
+    - Final `complete` event with full verification data at 100%
+    - Error events for failure scenarios
+  - **Frontend Changes**:
+    - Fetch with `credentials: 'include'` and `cache: 'no-store'` to enable stream reading
+    - Stream reader with buffer-based SSE parser
+    - Real-time UI updates as events arrive (no setTimeout)
+    - `streamComplete` flag to exit loop on complete/error events
+    - Proper cleanup with `reader.releaseLock()`
+  - **Result**: ✅ Messages perfectly synchronized with backend, ✅ Real-time progress visible, ✅ Accurate timing display
+  - **Architect Review**: Passed - robust stream handling, no blocking issues, proper cleanup
+  - **User Experience**: Users now see exact progress as analysis happens, not estimated timing
+
+- **October 12, 2025**: ✅ **RESOLVED Next.js Chunk Loading & Hydration Errors**
   - **Problem**: Chunk 404 errors (app-pages-internals.js, webpack chunks) caused React hydration failures → hooks didn't work → progress messages couldn't update
   - **Root Cause**: Next.js chunk loading timeout bug (GitHub issue #66526) - chunks failed to load within default timeout on Replit environment
   - **Solution**: Added `webpack: (config) => { config.output.chunkLoadTimeout = 120000; return config; }` to next.config.js

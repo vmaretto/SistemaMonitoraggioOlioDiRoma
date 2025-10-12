@@ -221,24 +221,10 @@ export async function POST(request: NextRequest) {
                 produttore: bestMatch.produttore,
                 denominazione: bestMatch.denominazione
               } : undefined,
-              analisiTestuale: textualComparison ? {
-                matchScore: textualComparison.matchScore,
-                differences: textualComparison.differences,
-                reasoning: textualComparison.reasoning,
-                conformitaDOP: {
-                  risultato: conformity.risultato,
-                  score: conformity.percentualeMatch,
-                  violazioni: conformity.violazioni
-                }
-              } : {
-                matchScore: conformity.percentualeMatch,
-                differences: conformity.violazioni,
-                reasoning: conformity.note,
-                conformitaDOP: {
-                  risultato: conformity.risultato,
-                  score: conformity.percentualeMatch,
-                  violazioni: conformity.violazioni
-                }
+              analisiTestuale: {
+                risultato: conformity.risultato,
+                score: textualComparison?.matchScore || conformity.percentualeMatch,
+                violazioni: violazioniCombinate
               },
               analisiVisiva: visualComparison ? {
                 similarity: visualComparison.similarity,
