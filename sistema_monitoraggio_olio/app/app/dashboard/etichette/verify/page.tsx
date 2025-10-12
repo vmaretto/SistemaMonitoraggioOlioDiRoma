@@ -44,6 +44,8 @@ export default function VerifyEtichettaPage() {
   const [uploadLoading, setUploadLoading] = useState(false);
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [progressMessage, setProgressMessage] = useState<string>('');
+  const [progressPercent, setProgressPercent] = useState<number>(0);
   const router = useRouter();
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
@@ -52,28 +54,75 @@ export default function VerifyEtichettaPage() {
     setUploadLoading(true);
     setError(null);
     setVerificationResult(null);
+    setProgressPercent(0);
+    setProgressMessage('');
 
     const file = acceptedFiles[0];
     const formData = new FormData();
     formData.append('file', file);
 
+    // Messaggi di progresso simulati
+    const progressSteps = [
+      { percent: 15, message: '📸 Estrazione testo dall\'immagine con OCR...', delay: 1000 },
+      { percent: 35, message: '📋 Analisi conformità DOP/IGP...', delay: 3000 },
+      { percent: 60, message: '🔍 Confronto con etichette ufficiali...', delay: 5000 },
+      { percent: 85, message: '👁️ Analisi visiva approfondita...', delay: 8000 },
+      { percent: 95, message: '💾 Finalizzazione verifica...', delay: 11000 }
+    ];
+
+    const startTime = Date.now();
+    let currentStepIndex = 0;
+
+    // Simula progresso
+    const progressInterval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      
+      if (currentStepIndex < progressSteps.length) {
+        const step = progressSteps[currentStepIndex];
+        if (elapsed >= step.delay) {
+          setProgressPercent(step.percent);
+          setProgressMessage(step.message);
+          currentStepIndex++;
+        }
+      }
+    }, 500);
+
+    // Timeout controller per 120 secondi
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000);
+
     try {
       const response = await fetch('/api/etichette/verify', {
         method: 'POST',
-        body: formData
+        body: formData,
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
+      clearInterval(progressInterval);
 
       if (response.ok) {
         const data = await response.json();
-        setVerificationResult(data.verifica);
+        setProgressPercent(100);
+        setProgressMessage('✅ Verifica completata!');
+        setTimeout(() => {
+          setVerificationResult(data.verifica);
+          setUploadLoading(false);
+        }, 500);
       } else {
         const errorData = await response.json();
         setError(errorData.error || 'Errore durante la verifica');
+        setUploadLoading(false);
       }
     } catch (error) {
+      clearTimeout(timeoutId);
+      clearInterval(progressInterval);
       console.error('Errore upload etichetta:', error);
-      setError('Errore di connessione durante il caricamento');
-    } finally {
+      if ((error as Error).name === 'AbortError') {
+        setError('Timeout: l\'analisi sta richiedendo troppo tempo. Riprova con un\'immagine più piccola.');
+      } else {
+        setError('Errore di connessione durante il caricamento');
+      }
       setUploadLoading(false);
     }
   }, []);
@@ -229,14 +278,38 @@ export default function VerifyEtichettaPage() {
 
       {uploadLoading && (
         <Card className="max-w-2xl mx-auto">
-          <CardContent className="p-12 text-center">
-            <Zap className="h-16 w-16 text-blue-500 mx-auto mb-4 animate-pulse" />
-            <h3 className="text-xl font-semibold mb-2">Analisi in corso...</h3>
-            <p className="text-muted-foreground mb-6">
-              Stiamo processando l'etichetta con OCR e confrontando con il database ufficiale
-            </p>
-            <div className="flex justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <CardContent className="p-12">
+            <div className="text-center mb-8">
+              <Zap className="h-16 w-16 text-blue-500 mx-auto mb-4 animate-pulse" />
+              <h3 className="text-xl font-semibold mb-2">Analisi in corso...</h3>
+              <p className="text-muted-foreground">
+                Il processo richiede 30-40 secondi, attendere prego
+              </p>
+            </div>
+
+            {/* Barra di progresso */}
+            <div className="space-y-4">
+              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                <div 
+                  className="bg-blue-500 h-full transition-all duration-500 ease-out"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+
+              {/* Messaggio di progresso corrente */}
+              {progressMessage && (
+                <div className="flex items-center justify-center space-x-2 text-sm">
+                  <div className="flex items-center space-x-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                    <span className="text-blue-900 font-medium">{progressMessage}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Percentuale */}
+              <div className="text-center text-sm text-gray-600">
+                {progressPercent}% completato
+              </div>
             </div>
           </CardContent>
         </Card>
