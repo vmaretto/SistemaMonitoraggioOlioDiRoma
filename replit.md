@@ -6,7 +6,44 @@ The application serves as a centralized hub for analyzing online content sentime
 
 ## Recent Changes
 
-- **October 12, 2025 (Latest)**: ✅ **FIXED SSE Progress Not Visible - Wrong Page Implementation**
+- **October 12, 2025 (Latest)**: ✅ **COMPLETED Smart Image Detection & Semi-Automatic Label Verification**
+  - **Feature**: Automatic image detection in monitored content with one-click verification workflow
+  - **Database Schema**:
+    - Added `imageUrl` (optional TEXT) to `ContenutiMonitorati` for storing detected image URLs
+    - Added `metadata` (optional JSON) for additional image metadata (alt text, og:image properties)
+    - Added `contenutoMonitoratoId` (optional) to `VerificheEtichette` for bidirectional linking
+    - Added `verifiche` relation on `ContenutiMonitorati` for reverse lookups
+  - **Image Detection Logic** (`src/utils/image-detection.ts`):
+    - Pattern matching: Direct image URLs (.jpg, .png, .gif, .webp extensions)
+    - HTML parsing: `<img src="...">` tag extraction with regex
+    - Metadata extraction: OpenGraph (`og:image`) and Twitter Card (`twitter:image`) properties
+    - Integrated into normalize service - runs automatically during content ingestion
+  - **UI Enhancements** (`app/dashboard/contenuti/page.tsx`):
+    - 📷 "Contiene Immagine" badge displayed for content with detected images
+    - 🔍 "Verifica Etichetta" button (purple, next to "Visualizza") for quick verification
+    - Result badges: ✅ Conforme (green), ❌ Non Conforme (red), ⚠️ Sospetta (orange)
+    - Badges show latest verification result for each content item
+  - **API Security** (`app/api/etichette/verify/route.ts`):
+    - **SSRF Protection**: When `contenutoMonitoratoId` is present, validates imageUrl against database
+    - Loads content from DB and uses its stored imageUrl (rejects if missing/mismatched)
+    - URL validation: Only HTTP/HTTPS protocols allowed, 10MB size limit
+    - Dual input support: File upload OR verified imageUrl with contenutoMonitoratoId
+  - **Verification Workflow** (`app/dashboard/verifiche/page.tsx`):
+    - Reads `verifyFromContent` and `imageUrl` from query params
+    - Auto-triggers `verifyFromUrl()` when params present
+    - Downloads image, converts to base64, passes to SSE verification pipeline
+    - Saves verification with `contenutoMonitoratoId` for traceability
+    - Redirects to verifiche list after completion
+  - **Complete Flow**:
+    1. Content ingested → Image URL automatically detected and saved
+    2. User sees 📷 badge and 🔍 button in content list
+    3. Clicks "Verifica Etichetta" → Navigates to verifiche page with params
+    4. System downloads image from verified URL → Runs SSE verification
+    5. Saves result with link to original content → Shows result badge
+  - **Security Audit**: Passed with SSRF mitigation - database-verified URLs only when contenutoMonitoratoId present
+  - **User Experience**: Seamless one-click verification from content monitoring to label analysis
+
+- **October 12, 2025**: ✅ **FIXED SSE Progress Not Visible - Wrong Page Implementation**
   - **Problem**: Backend sent SSE events correctly but frontend never received them → no progress messages visible
   - **Root Cause**: SSE code was in `/app/dashboard/etichette/verify/page.tsx` but user's upload button was in `/app/dashboard/verifiche/page.tsx`
   - **Impact**: Two separate pages - SSE implementation orphaned, never executed

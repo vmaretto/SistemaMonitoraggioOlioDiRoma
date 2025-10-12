@@ -4,6 +4,8 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { extractTextFromLabel, analyzeConformity, compareLabelsVisually, compareTextWithOfficialLabel } from '@/src/services/openai';
+import { lookup } from 'dns/promises';
+import * as ipaddr from 'ipaddr.js';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120; // Timeout 120 secondi per chiamate OpenAI Vision (OCR + confronti)
@@ -14,6 +16,70 @@ function sendSSE(controller: ReadableStreamDefaultController, event: { type: str
   const message = `data: ${JSON.stringify(event)}\n\n`;
   console.log('🔔 Invio evento SSE:', event.type, event.message, event.progress);
   controller.enqueue(encoder.encode(message));
+}
+
+// Helper per validare IP contro SSRF usando ipaddr.js (RFC compliant)
+function isPrivateOrReservedIP(ip: string): boolean {
+  try {
+    const addr = ipaddr.process(ip); // Supporta IPv4, IPv6, IPv4-mapped, compressed, etc.
+    const range = addr.range();
+    
+    // Blocca tutti i range privati, riservati, loopback, link-local
+    const dangerousRanges = [
+      'private',        // RFC1918: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+      'loopback',       // 127.0.0.0/8, ::1
+      'linkLocal',      // 169.254.0.0/16, fe80::/10
+      'broadcast',      // 255.255.255.255
+      'reserved',       // Reserved ranges
+      'carrierGradeNat',// 100.64.0.0/10
+      'uniqueLocal'     // fc00::/7 (IPv6 ULA)
+    ];
+    
+    return dangerousRanges.includes(range);
+  } catch {
+    // Se il parsing fallisce, blocca per sicurezza
+    return true;
+  }
+}
+
+// Helper per validare URL e risolvere DNS
+async function validateAndResolveURL(url: string): Promise<{ valid: boolean; error?: string }> {
+  try {
+    const urlObj = new URL(url);
+    
+    // Solo HTTP/HTTPS
+    if (!['http:', 'https:'].includes(urlObj.protocol)) {
+      return { valid: false, error: 'Solo protocolli HTTP/HTTPS permessi' };
+    }
+    
+    // Blocca userinfo (user:pass@host) per prevenire attacchi
+    if (urlObj.username || urlObj.password) {
+      return { valid: false, error: 'URL con credenziali non permesso' };
+    }
+    
+    // Blocca IP diretti (solo nomi dominio)
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(urlObj.hostname) || urlObj.hostname.includes(':')) {
+      return { valid: false, error: 'URL deve usare nome dominio, non IP diretto' };
+    }
+    
+    // Risolvi DNS
+    try {
+      const addresses = await lookup(urlObj.hostname, { all: true });
+      
+      // Controlla tutti gli IP risolti
+      for (const addr of addresses) {
+        if (isPrivateOrReservedIP(addr.address)) {
+          return { valid: false, error: `URL risolve a indirizzo privato/riservato: ${addr.address}` };
+        }
+      }
+    } catch (dnsError) {
+      return { valid: false, error: 'Impossibile risolvere hostname' };
+    }
+    
+    return { valid: true };
+  } catch {
+    return { valid: false, error: 'URL malformato' };
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -30,23 +96,86 @@ export async function POST(request: NextRequest) {
     async start(controller) {
       try {
         const formData = await request.formData();
-        const file = formData.get('file') as File;
+        const file = formData.get('file') as File | null;
+        const contenutoMonitoratoId = formData.get('contenutoMonitoratoId') as string | null;
         
-        if (!file) {
-          sendSSE(controller, { type: 'error', message: 'File immagine richiesto' });
+        let base64String: string;
+        let dataUrl: string;
+        let mimeType = 'image/jpeg';
+
+        // SECURITY: Due modalità di verifica separate
+        if (contenutoMonitoratoId) {
+          // Modalità 1: Verifica da contenuto monitorato - USA SOLO URL DAL DATABASE
+          const contenuto = await prisma.contenutiMonitorati.findUnique({
+            where: { id: contenutoMonitoratoId },
+            select: { imageUrl: true }
+          });
+
+          if (!contenuto || !contenuto.imageUrl) {
+            sendSSE(controller, { type: 'error', message: 'Contenuto non trovato o senza immagine' });
+            controller.close();
+            return;
+          }
+
+          const dbImageUrl = contenuto.imageUrl;
+          console.log('✅ URL immagine verificato dal database:', dbImageUrl);
+
+          // Valida URL con DNS resolution e IP check
+          const validation = await validateAndResolveURL(dbImageUrl);
+          if (!validation.valid) {
+            sendSSE(controller, { type: 'error', message: validation.error || 'URL non valido' });
+            controller.close();
+            return;
+          }
+
+          // Scarica immagine da URL validato con redirect disabilitato
+          sendSSE(controller, { type: 'progress', message: '🌐 Download immagine da URL...', progress: 5 });
+          
+          const imageResponse = await fetch(dbImageUrl, {
+            redirect: 'manual' // Blocca redirect automatici per prevenire SSRF
+          });
+          
+          // Gestisci redirect manualmente (se presente, rifiuta)
+          if (imageResponse.status >= 300 && imageResponse.status < 400) {
+            sendSSE(controller, { type: 'error', message: 'URL con redirect non permesso (potenziale SSRF)' });
+            controller.close();
+            return;
+          }
+          
+          if (!imageResponse.ok) {
+            sendSSE(controller, { type: 'error', message: 'Impossibile scaricare l\'immagine dall\'URL' });
+            controller.close();
+            return;
+          }
+
+          const buffer = await imageResponse.arrayBuffer();
+          
+          // Limite dimensione: max 10MB
+          if (buffer.byteLength > 10 * 1024 * 1024) {
+            sendSSE(controller, { type: 'error', message: 'Immagine troppo grande (max 10MB)' });
+            controller.close();
+            return;
+          }
+
+          base64String = Buffer.from(buffer).toString('base64');
+          mimeType = imageResponse.headers.get('content-type') || 'image/jpeg';
+          dataUrl = `data:${mimeType};base64,${base64String}`;
+          
+          console.log('✅ Immagine scaricata, dimensione:', buffer.byteLength, 'bytes');
+        } else if (file) {
+          // Modalità 2: Verifica manuale con file upload - NO URL DAL CLIENT
+          const buffer = await file.arrayBuffer();
+          base64String = Buffer.from(buffer).toString('base64');
+          mimeType = file.type || 'image/jpeg';
+          dataUrl = `data:${mimeType};base64,${base64String}`;
+          console.log('✅ File caricato, dimensione:', buffer.byteLength, 'bytes');
+        } else {
+          sendSSE(controller, { type: 'error', message: 'File immagine richiesto per verifica manuale' });
           controller.close();
           return;
         }
 
         sendSSE(controller, { type: 'progress', message: '📸 Estrazione testo dall\'immagine con OCR...', progress: 10 });
-
-        // Converti immagine in base64
-        const buffer = await file.arrayBuffer();
-        const base64String = Buffer.from(buffer).toString('base64');
-        
-        // Crea data URL per salvare l'immagine
-        const mimeType = file.type || 'image/jpeg';
-        const dataUrl = `data:${mimeType};base64,${base64String}`;
 
         // 1. OCR con OpenAI Vision
         console.log('📸 Step 1: Estrazione testo con OCR...');
@@ -182,7 +311,8 @@ export async function POST(request: NextRequest) {
             violazioniRilevate: violazioniCombinate,
             note: `Analisi conformità DOP/IGP: ${conformity.note}\n\nConfronto testuale: ${textualComparison?.reasoning || 'Non disponibile'}\n\nAnalisi visiva: ${visualComparison?.explanation || 'Non disponibile'}`,
             stato: 'verificata',
-            ...(bestMatch && { etichettaRiferimento: bestMatch.id })
+            ...(bestMatch && { etichettaRiferimento: bestMatch.id }),
+            ...(contenutoMonitoratoId && { contenutoMonitoratoId })
           }
         });
 

@@ -84,6 +84,12 @@ export async function GET(request: NextRequest) {
     const [contenuti, totalCount, activeKeywords] = await Promise.all([
       prisma.contenutiMonitorati.findMany({
         where,
+        include: {
+          verifiche: {
+            orderBy: { createdAt: 'desc' },
+            take: 1
+          }
+        },
         orderBy: [
           { dataPost: 'desc' },
           { rilevanza: 'desc' }

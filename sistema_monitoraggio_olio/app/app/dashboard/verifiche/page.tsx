@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CheckCircle, XCircle, AlertTriangle, Upload, Image as ImageIcon, Zap } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import Image from 'next/image';
@@ -38,10 +38,20 @@ export default function VerifichePage() {
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     fetchVerifiche();
   }, []);
+
+  useEffect(() => {
+    const verifyFromContent = searchParams?.get('verifyFromContent');
+    const imageUrl = searchParams?.get('imageUrl');
+    
+    if (verifyFromContent && imageUrl) {
+      verifyFromUrl(imageUrl, verifyFromContent);
+    }
+  }, [searchParams]);
 
   const fetchVerifiche = async () => {
     try {
@@ -52,6 +62,130 @@ export default function VerifichePage() {
       console.error('Errore caricamento verifiche:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const verifyFromUrl = async (imageUrl: string, contenutoId: string) => {
+    console.log('📤 Inizio verifica da URL con SSE...');
+    setUploadLoading(true);
+    setError(null);
+    setProgressPercent(0);
+    setProgressMessage('Inizializzazione verifica da contenuto monitorato...');
+    setElapsedTime(0);
+
+    const formData = new FormData();
+    formData.append('imageUrl', imageUrl);
+    formData.append('contenutoMonitoratoId', contenutoId);
+
+    const startTime = Date.now();
+
+    // Timeout controller per 120 secondi
+    const controller = new AbortController();
+    const abortTimeout = setTimeout(() => controller.abort(), 120000);
+
+    try {
+      console.log('🚀 Invio richiesta POST SSE a /api/etichette/verify con imageUrl:', imageUrl);
+      const response = await fetch('/api/etichette/verify', {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
+        credentials: 'include',
+        cache: 'no-store'
+      });
+
+      clearTimeout(abortTimeout);
+
+      if (!response.ok) {
+        try {
+          const errorData = await response.json();
+          setError(errorData.error || 'Errore durante la verifica');
+        } catch {
+          setError(`Errore HTTP ${response.status}: ${response.statusText}`);
+        }
+        setUploadLoading(false);
+        return;
+      }
+
+      // Leggi stream SSE
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        setError('Impossibile leggere la risposta del server');
+        setUploadLoading(false);
+        return;
+      }
+
+      let buffer = '';
+      let streamComplete = false;
+
+      while (!streamComplete) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        
+        // Elabora tutti gli eventi completi
+        for (let i = 0; i < lines.length - 1; i++) {
+          const line = lines[i].trim();
+          if (line.startsWith('data: ')) {
+            try {
+              const eventData = JSON.parse(line.substring(6));
+              const currentTime = Math.floor((Date.now() - startTime) / 1000);
+              setElapsedTime(currentTime);
+
+              console.log('📨 Evento SSE ricevuto:', eventData);
+
+              if (eventData.type === 'progress') {
+                setProgressPercent(eventData.progress || 0);
+                setProgressMessage(eventData.message || '');
+                console.log(`✓ ${eventData.message} (${eventData.progress}%)`);
+              } else if (eventData.type === 'complete') {
+                const totalTime = Math.floor((Date.now() - startTime) / 1000);
+                setElapsedTime(totalTime);
+                setProgressPercent(100);
+                setProgressMessage(`✅ Verifica completata in ${totalTime} secondi!`);
+                console.log(`✓ Analisi completata in ${totalTime} secondi`);
+                
+                setTimeout(() => {
+                  setUploadLoading(false);
+                  setProgressPercent(0);
+                  setProgressMessage('');
+                  fetchVerifiche();
+                  router.push('/dashboard/verifiche');
+                }, 1500);
+                
+                streamComplete = true;
+                break;
+              } else if (eventData.type === 'error') {
+                setError(eventData.message || 'Errore durante la verifica');
+                setUploadLoading(false);
+                streamComplete = true;
+                break;
+              }
+            } catch (parseError) {
+              console.error('Errore parsing evento SSE:', parseError, line);
+            }
+          }
+        }
+
+        // Mantieni l'ultimo frammento incompleto nel buffer
+        buffer = lines[lines.length - 1];
+      }
+
+      reader.releaseLock();
+
+    } catch (error) {
+      clearTimeout(abortTimeout);
+      console.error('Errore verifica da URL:', error);
+      if ((error as Error).name === 'AbortError') {
+        setError('Timeout: l\'analisi sta richiedendo troppo tempo. Riprova.');
+      } else {
+        setError('Errore di connessione durante la verifica');
+      }
+      setUploadLoading(false);
     }
   };
 

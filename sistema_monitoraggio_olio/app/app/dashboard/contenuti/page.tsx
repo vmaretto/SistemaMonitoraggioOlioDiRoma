@@ -788,6 +788,34 @@ export default function ContenutiPage() {
                             Contiene Immagine
                           </Badge>
                         )}
+                        {(contenuto as any).verifiche && (contenuto as any).verifiche.length > 0 && (() => {
+                          const verifica = (contenuto as any).verifiche[0];
+                          const risultato = verifica.risultatoMatching;
+                          
+                          if (risultato === 'conforme') {
+                            return (
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Conforme
+                              </Badge>
+                            );
+                          } else if (risultato === 'non_conforme') {
+                            return (
+                              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                                <XCircle className="h-3 w-3 mr-1" />
+                                Non Conforme
+                              </Badge>
+                            );
+                          } else if (risultato === 'sospetta') {
+                            return (
+                              <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                                <AlertTriangle className="h-3 w-3 mr-1" />
+                                Sospetta
+                              </Badge>
+                            );
+                          }
+                          return null;
+                        })()}
                         <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getSentimentColor(contenuto.sentiment)}`}>
                           {getSentimentIcon(contenuto.sentiment)}
                           <span>{contenuto.sentiment}</span>
