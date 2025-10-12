@@ -45,6 +45,7 @@ export default function VerifyEtichettaPage() {
   const [error, setError] = useState<string | null>(null);
   const [progressMessage, setProgressMessage] = useState<string>('');
   const [progressPercent, setProgressPercent] = useState<number>(0);
+  const [elapsedTime, setElapsedTime] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -56,36 +57,39 @@ export default function VerifyEtichettaPage() {
     setError(null);
     setVerificationResult(null);
     setProgressPercent(0);
-    setProgressMessage('');
+    setProgressMessage('Inizializzazione...');
+    setElapsedTime(0);
 
     const formData = new FormData();
     formData.append('file', file);
 
     // Messaggi di progresso ottimizzati (workflow parallelizzato)
     const progressSteps = [
-      { percent: 15, message: '📸 Estrazione testo dall\'immagine con OCR...', delay: 1000 },
-      { percent: 30, message: '📋 Analisi conformità DOP/IGP...', delay: 4000 },
-      { percent: 55, message: '⚡ Confronto testuale parallelo (12 etichette)...', delay: 7000 },
-      { percent: 80, message: '👁️ Confronto visivo con etichetta migliore...', delay: 12000 },
-      { percent: 95, message: '💾 Salvataggio verifica e creazione alert...', delay: 22000 }
+      { percent: 10, message: '📸 Estrazione testo dall\'immagine con OCR...', delay: 500 },
+      { percent: 25, message: '📋 Analisi conformità DOP/IGP...', delay: 4000 },
+      { percent: 50, message: '⚡ Confronto testuale parallelo (12 etichette)...', delay: 8000 },
+      { percent: 75, message: '👁️ Confronto visivo con etichetta migliore...', delay: 15000 },
+      { percent: 90, message: '💾 Salvataggio verifica e creazione alert...', delay: 25000 }
     ];
 
     const startTime = Date.now();
     let currentStepIndex = 0;
 
-    // Simula progresso
+    // Aggiorna progresso e timer
     const progressInterval = setInterval(() => {
       const elapsed = Date.now() - startTime;
+      setElapsedTime(Math.floor(elapsed / 1000)); // Aggiorna secondi trascorsi
       
       if (currentStepIndex < progressSteps.length) {
         const step = progressSteps[currentStepIndex];
         if (elapsed >= step.delay) {
           setProgressPercent(step.percent);
           setProgressMessage(step.message);
+          console.log(`✓ ${step.message}`);
           currentStepIndex++;
         }
       }
-    }, 500);
+    }, 200); // Controllo più frequente per timer fluido
 
     // Timeout controller per 120 secondi
     const controller = new AbortController();
@@ -105,12 +109,15 @@ export default function VerifyEtichettaPage() {
 
       if (response.ok) {
         const data = await response.json();
+        const totalTime = Math.floor((Date.now() - startTime) / 1000);
+        setElapsedTime(totalTime);
         setProgressPercent(100);
-        setProgressMessage('✅ Verifica completata!');
+        setProgressMessage(`✅ Verifica completata in ${totalTime} secondi!`);
+        console.log(`✓ Analisi completata in ${totalTime} secondi`);
         setTimeout(() => {
           setVerificationResult(data.verifica);
           setUploadLoading(false);
-        }, 500);
+        }, 1000);
       } else {
         const errorData = await response.json();
         setError(errorData.error || 'Errore durante la verifica');
@@ -127,6 +134,12 @@ export default function VerifyEtichettaPage() {
       }
       setUploadLoading(false);
     }
+
+    // Cleanup function per smontaggio componente
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(progressInterval);
+    };
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -292,32 +305,33 @@ export default function VerifyEtichettaPage() {
               <Zap className="h-16 w-16 text-blue-500 mx-auto mb-4 animate-pulse" />
               <h3 className="text-xl font-semibold mb-2">Analisi in corso...</h3>
               <p className="text-muted-foreground">
-                Il processo richiede 30-40 secondi, attendere prego
+                Tempo trascorso: <span className="font-mono font-bold text-blue-600">{elapsedTime}s</span>
               </p>
             </div>
 
             {/* Barra di progresso */}
             <div className="space-y-4">
-              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+              <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
                 <div 
-                  className="bg-blue-500 h-full transition-all duration-500 ease-out"
+                  className="bg-gradient-to-r from-blue-500 to-blue-600 h-full transition-all duration-500 ease-out"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
 
-              {/* Messaggio di progresso corrente */}
+              {/* Messaggio di progresso corrente - PIÙ GRANDE E VISIBILE */}
               {progressMessage && (
-                <div className="flex items-center justify-center space-x-2 text-sm">
-                  <div className="flex items-center space-x-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                    <span className="text-blue-900 font-medium">{progressMessage}</span>
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="flex items-center space-x-3 bg-blue-50 px-6 py-3 rounded-lg border-2 border-blue-300">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse" />
+                    <span className="text-blue-900 font-semibold text-base">{progressMessage}</span>
                   </div>
                 </div>
               )}
 
-              {/* Percentuale */}
-              <div className="text-center text-sm text-gray-600">
-                {progressPercent}% completato
+              {/* Percentuale e tempo */}
+              <div className="flex items-center justify-between text-sm text-gray-600 px-2">
+                <span className="font-medium">{progressPercent}% completato</span>
+                <span className="font-mono">~30-35s totali</span>
               </div>
             </div>
           </CardContent>
@@ -337,6 +351,11 @@ export default function VerifyEtichettaPage() {
                     <CardDescription className="text-base mt-1">
                       {getResultDescription(verificationResult.risultatoMatching)}
                     </CardDescription>
+                    {elapsedTime > 0 && (
+                      <div className="mt-2 inline-flex items-center px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-sm font-medium">
+                        ⏱️ Analisi completata in {elapsedTime} secondi
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">

@@ -6,7 +6,17 @@ The application serves as a centralized hub for analyzing online content sentime
 
 ## Recent Changes
 
-- **October 12, 2025 (Latest)**: ✅ **COMPLETED Major Performance Optimization for Label Verification**
+- **October 12, 2025 (Latest)**: ✅ **COMPLETED Enhanced Progress Tracking & User Feedback**
+  - **Real-Time Timer**: Added live seconds counter during analysis (updates every 200ms)
+  - **Visible Progress Steps**: 5 distinct step messages with emoji indicators, larger font, and prominent borders
+  - **Total Time Display**: Shows exact completion time in final results with badge (⏱️ "Analisi completata in X secondi")
+  - **Enhanced UI**: Thicker progress bar with gradient, bigger step messages, and contextual timing info
+  - **Cleanup Logic**: Proper interval cleanup on component unmount to prevent memory leaks
+  - **Console Logging**: Each step logged with ✓ checkmark for debugging
+  - **User Experience**: Clear visibility of all analysis phases from OCR through final save
+  - **Architect Review**: Approved - accurate timing, no UX regressions, good placement
+
+- **October 12, 2025**: ✅ **COMPLETED Major Performance Optimization for Label Verification**
   - **Database Schema Fix**: Corrected field name from `etichettaUfficialeId` to `etichettaRiferimento` in verification save logic (aligned with Prisma schema)
   - **Parallelization Breakthrough**: Replaced sequential `for` loop with `Promise.all()` for textual label comparisons
   - **Performance Gain**: Reduced verification time from 60+ seconds → ~5 seconds for textual analysis (12x speedup)
