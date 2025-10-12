@@ -6,6 +6,14 @@ The application serves as a centralized hub for analyzing online content sentime
 
 ## Recent Changes
 
+- **October 12, 2025 (Latest)**: ✅ **FIXED Critical React Hydration Bug**
+  - **Issue**: Application showed blank pages and "Invalid hook call" errors blocking all interactivity
+  - **Root Cause**: Providers component had mount-checking logic (`if (!mounted) return null`) causing server/client mismatch
+  - **Solution**: Removed useState/useEffect mount guard - server and client now render identical markup
+  - **Impact**: All pages now render correctly, dropzone and interactive features fully functional
+  - **Added**: Debug logging and fallback file input for label verification page
+  - **Status**: Verified by architect - no regressions, follows Next.js best practices
+
 - **October 12, 2025**: ✅ **COMPLETED Migration from AbacusAI to OpenAI GPT-5 + Performance Optimization**
   - Replaced all AbacusAI integrations with OpenAI GPT-5 and GPT-5 Vision
   - Implemented dual-layer label verification: 50% textual matching + 50% visual similarity
