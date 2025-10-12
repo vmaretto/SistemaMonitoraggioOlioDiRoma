@@ -6,7 +6,20 @@ The application serves as a centralized hub for analyzing online content sentime
 
 ## Recent Changes
 
-- **October 12, 2025 (Latest)**: ✅ **IMPLEMENTED Real-Time Progress with Server-Sent Events (SSE)**
+- **October 12, 2025 (Latest)**: ✅ **FIXED SSE Progress Not Visible - Wrong Page Implementation**
+  - **Problem**: Backend sent SSE events correctly but frontend never received them → no progress messages visible
+  - **Root Cause**: SSE code was in `/app/dashboard/etichette/verify/page.tsx` but user's upload button was in `/app/dashboard/verifiche/page.tsx`
+  - **Impact**: Two separate pages - SSE implementation orphaned, never executed
+  - **Solution**: Moved complete SSE streaming logic from `etichette/verify` to `verifiche` page (the actual upload page)
+  - **Changes Made**:
+    - Added SSE states to verifiche page: `progressMessage`, `progressPercent`, `elapsedTime`, `error`
+    - Replaced old JSON fetch with full SSE stream reader in `onDrop` callback
+    - Added real-time progress UI: animated progress bar, step messages, elapsed time counter
+    - Error handling with visual alerts for timeout/connection failures
+  - **Result**: ✅ SSE events now received by frontend, ✅ Progress messages display in real-time, ✅ User sees all 5 analysis steps
+  - **Status**: Requires hard refresh (Ctrl+Shift+R) to load new JavaScript bundle with SSE code
+
+- **October 12, 2025**: ✅ **IMPLEMENTED Real-Time Progress with Server-Sent Events (SSE)**
   - **Problem**: Progress messages used setTimeout with fixed timings → not synchronized with actual backend progress → confusing UX
   - **Solution**: Replaced JSON response with Server-Sent Events streaming for real-time updates
   - **Backend Changes**:

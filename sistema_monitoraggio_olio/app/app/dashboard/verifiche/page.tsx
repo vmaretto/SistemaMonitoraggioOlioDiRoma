@@ -33,6 +33,10 @@ export default function VerifichePage() {
   const [loading, setLoading] = useState(true);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [filter, setFilter] = useState('all');
+  const [progressMessage, setProgressMessage] = useState<string>('');
+  const [progressPercent, setProgressPercent] = useState<number>(0);
+  const [elapsedTime, setElapsedTime] = useState<number>(0);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -54,24 +58,131 @@ export default function VerifichePage() {
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
 
-    setUploadLoading(true);
     const file = acceptedFiles[0];
+    
+    // Verifica dimensione max 10MB
+    if (file.size > 10 * 1024 * 1024) {
+      setError('File troppo grande. Massimo 10MB');
+      return;
+    }
+
+    console.log('📤 Inizio upload e analisi con SSE...');
+    setUploadLoading(true);
+    setError(null);
+    setProgressPercent(0);
+    setProgressMessage('Inizializzazione...');
+    setElapsedTime(0);
+
     const formData = new FormData();
     formData.append('file', file);
 
+    const startTime = Date.now();
+
+    // Timeout controller per 120 secondi
+    const controller = new AbortController();
+    const abortTimeout = setTimeout(() => controller.abort(), 120000);
+
     try {
+      console.log('🚀 Invio richiesta POST SSE a /api/etichette/verify...');
       const response = await fetch('/api/etichette/verify', {
         method: 'POST',
-        body: formData
+        body: formData,
+        signal: controller.signal,
+        credentials: 'include',
+        cache: 'no-store'
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        fetchVerifiche();
+      clearTimeout(abortTimeout);
+
+      if (!response.ok) {
+        try {
+          const errorData = await response.json();
+          setError(errorData.error || 'Errore durante la verifica');
+        } catch {
+          setError(`Errore HTTP ${response.status}: ${response.statusText}`);
+        }
+        setUploadLoading(false);
+        return;
       }
+
+      // Leggi stream SSE
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        setError('Impossibile leggere la risposta del server');
+        setUploadLoading(false);
+        return;
+      }
+
+      let buffer = '';
+      let streamComplete = false;
+
+      while (!streamComplete) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        
+        // Elabora tutti gli eventi completi
+        for (let i = 0; i < lines.length - 1; i++) {
+          const line = lines[i].trim();
+          if (line.startsWith('data: ')) {
+            try {
+              const eventData = JSON.parse(line.substring(6));
+              const currentTime = Math.floor((Date.now() - startTime) / 1000);
+              setElapsedTime(currentTime);
+
+              console.log('📨 Evento SSE ricevuto:', eventData);
+
+              if (eventData.type === 'progress') {
+                setProgressPercent(eventData.progress || 0);
+                setProgressMessage(eventData.message || '');
+                console.log(`✓ ${eventData.message} (${eventData.progress}%)`);
+              } else if (eventData.type === 'complete') {
+                const totalTime = Math.floor((Date.now() - startTime) / 1000);
+                setElapsedTime(totalTime);
+                setProgressPercent(100);
+                setProgressMessage(`✅ Verifica completata in ${totalTime} secondi!`);
+                console.log(`✓ Analisi completata in ${totalTime} secondi`);
+                
+                setTimeout(() => {
+                  setUploadLoading(false);
+                  setProgressPercent(0);
+                  setProgressMessage('');
+                  fetchVerifiche();
+                }, 1500);
+                
+                streamComplete = true;
+                break;
+              } else if (eventData.type === 'error') {
+                setError(eventData.message || 'Errore durante la verifica');
+                setUploadLoading(false);
+                streamComplete = true;
+                break;
+              }
+            } catch (parseError) {
+              console.error('Errore parsing evento SSE:', parseError, line);
+            }
+          }
+        }
+
+        // Mantieni l'ultimo frammento incompleto nel buffer
+        buffer = lines[lines.length - 1];
+      }
+
+      reader.releaseLock();
+
     } catch (error) {
+      clearTimeout(abortTimeout);
       console.error('Errore upload etichetta:', error);
-    } finally {
+      if ((error as Error).name === 'AbortError') {
+        setError('Timeout: l\'analisi sta richiedendo troppo tempo. Riprova con un\'immagine più piccola.');
+      } else {
+        setError('Errore di connessione durante il caricamento');
+      }
       setUploadLoading(false);
     }
   }, []);
@@ -163,6 +274,14 @@ export default function VerifichePage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {error && (
+            <Alert className="mb-4" variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Errore</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
           <div
             {...getRootProps()}
             className={`
@@ -173,9 +292,29 @@ export default function VerifichePage() {
           >
             <input {...getInputProps()} />
             {uploadLoading ? (
-              <div className="flex items-center justify-center">
-                <Zap className="h-6 w-6 animate-spin mr-2" />
-                <p>Analisi in corso...</p>
+              <div className="space-y-4">
+                <div className="flex items-center justify-center">
+                  <Zap className="h-6 w-6 animate-spin mr-2 text-blue-600" />
+                  <p className="font-medium">Analisi in corso... ({elapsedTime}s)</p>
+                </div>
+                
+                {/* Barra progresso */}
+                <div className="w-full max-w-md mx-auto">
+                  <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-blue-500 to-green-500 transition-all duration-500"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Messaggio progresso */}
+                {progressMessage && (
+                  <div className="mt-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                    <p className="text-lg font-semibold text-blue-900">{progressMessage}</p>
+                    <p className="text-sm text-blue-700 mt-1">{progressPercent}% completato</p>
+                  </div>
+                )}
               </div>
             ) : isDragActive ? (
               <div>
