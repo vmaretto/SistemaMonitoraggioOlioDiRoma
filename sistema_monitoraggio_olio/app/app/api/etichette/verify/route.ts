@@ -12,6 +12,7 @@ export const maxDuration = 120; // Timeout 120 secondi per chiamate OpenAI Visio
 function sendSSE(controller: ReadableStreamDefaultController, event: { type: string; message: string; data?: any; progress?: number }) {
   const encoder = new TextEncoder();
   const message = `data: ${JSON.stringify(event)}\n\n`;
+  console.log('🔔 Invio evento SSE:', event.type, event.message, event.progress);
   controller.enqueue(encoder.encode(message));
 }
 
