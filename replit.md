@@ -6,15 +6,22 @@ The application serves as a centralized hub for analyzing online content sentime
 
 ## Recent Changes
 
-- **October 12, 2025**: ✅ **COMPLETED Migration from AbacusAI to OpenAI GPT-5**
+- **October 12, 2025**: ✅ **COMPLETED Migration from AbacusAI to OpenAI GPT-5 + Performance Optimization**
   - Replaced all AbacusAI integrations with OpenAI GPT-5 and GPT-5 Vision
   - Implemented dual-layer label verification: 50% textual matching + 50% visual similarity
   - Added per-label textual comparison with `compareTextWithOfficialLabel()`
   - Enhanced visual matching with `compareLabelsVisually()` using GPT-5 Vision
   - Migrated sentiment analysis to OpenAI GPT-5 with structured JSON responses
   - Updated database schema to support data URL storage (TEXT fields) for uploaded images
-  - **Performance optimization**: Two-phase verification (textual pre-selection → visual matching on top 3)
-  - **API timeout**: Extended to 60 seconds for OpenAI Vision calls
+  
+  **🚀 Performance Optimization (Final)**:
+  - **Ultra-fast verification**: Reduced visual comparisons from 12 → 1 (only best textual match)
+  - **Two-phase approach**: Textual pre-selection across all labels → visual comparison on winner
+  - **API timeout**: Extended to 120 seconds for complex OpenAI Vision calls
+  - **Detailed logging**: Step-by-step console logs (OCR, conformity, matching, finalization)
+  - **User feedback**: Real-time progress bar with 5 step messages during analysis
+  - **Estimated time**: 30-40 seconds per verification (vs. previous timeout issues)
+  - **Frontend timeout**: 120s AbortController with proper cleanup and error handling
   - Removed legacy AbacusAI code and deprecated functions
 
 - **December 28, 2025**: Completed full implementation of Inspector Activity Tracking ("Tracciabilità attività ispettori")
