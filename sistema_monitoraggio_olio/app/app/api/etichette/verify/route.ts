@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db';
 import { extractTextFromLabel, analyzeConformity, compareLabelsVisually, compareTextWithOfficialLabel } from '@/src/services/openai';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // Timeout 60 secondi per chiamate OpenAI Vision
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,32 +47,51 @@ export async function POST(request: NextRequest) {
     let highestScore = 0;
     let visualComparison: any = null;
 
-    // Confronta con ogni etichetta ufficiale per trovare il miglior match
+    // OTTIMIZZAZIONE: Prima confronto testuale su tutte, poi visual solo sulle migliori
     let textualComparison: any = null;
     
+    // Fase 1: Confronto testuale veloce per pre-selezione
+    const textualScores: Array<{ etichetta: any; textComparison: any }> = [];
+    
     for (const etichetta of etichette) {
-      if (!etichetta.imageUrl) continue;
-
       try {
-        // 1. Confronto testuale con GPT-5
         const textComparison = await compareTextWithOfficialLabel(testoOcr, {
           nome: etichetta.nome,
           produttore: etichetta.produttore,
           denominazione: etichetta.denominazione,
           regioneProduzione: etichetta.regioneProduzione
         });
+        
+        textualScores.push({ etichetta, textComparison });
+      } catch (error) {
+        console.error(`Errore confronto testuale etichetta ${etichetta.id}:`, error);
+        continue;
+      }
+    }
 
-        // 2. Scarica l'immagine di riferimento
+    // Ordina per score testuale e prendi le top 3 candidate
+    const topCandidates = textualScores
+      .sort((a, b) => b.textComparison.matchScore - a.textComparison.matchScore)
+      .slice(0, 3);
+
+    console.log(`Confronto visivo su ${topCandidates.length} candidate (da ${etichette.length} totali)`);
+
+    // Fase 2: Confronto visivo solo sulle top candidate
+    for (const { etichetta, textComparison } of topCandidates) {
+      if (!etichetta.imageUrl) continue;
+
+      try {
+        // Scarica l'immagine di riferimento
         const refImageResponse = await fetch(etichetta.imageUrl);
         if (!refImageResponse.ok) continue;
 
         const refBuffer = await refImageResponse.arrayBuffer();
         const refBase64 = Buffer.from(refBuffer).toString('base64');
 
-        // 3. Confronto visivo con OpenAI Vision
+        // Confronto visivo con OpenAI Vision
         const visualComp = await compareLabelsVisually(base64String, refBase64);
 
-        // 4. Calcola score combinato: 50% testuale + 50% visivo
+        // Calcola score combinato: 50% testuale + 50% visivo
         const textualScore = textComparison.matchScore;
         const visualScore = visualComp.similarity;
         const combinedScore = (textualScore * 0.5) + (visualScore * 0.5);
@@ -83,7 +103,7 @@ export async function POST(request: NextRequest) {
           textualComparison = textComparison;
         }
       } catch (error) {
-        console.error(`Errore confronto con etichetta ${etichetta.id}:`, error);
+        console.error(`Errore confronto visivo etichetta ${etichetta.id}:`, error);
         continue;
       }
     }

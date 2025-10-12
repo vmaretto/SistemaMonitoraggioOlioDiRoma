@@ -13,6 +13,8 @@ The application serves as a centralized hub for analyzing online content sentime
   - Enhanced visual matching with `compareLabelsVisually()` using GPT-5 Vision
   - Migrated sentiment analysis to OpenAI GPT-5 with structured JSON responses
   - Updated database schema to support data URL storage (TEXT fields) for uploaded images
+  - **Performance optimization**: Two-phase verification (textual pre-selection → visual matching on top 3)
+  - **API timeout**: Extended to 60 seconds for OpenAI Vision calls
   - Removed legacy AbacusAI code and deprecated functions
 
 - **December 28, 2025**: Completed full implementation of Inspector Activity Tracking ("Tracciabilità attività ispettori")
