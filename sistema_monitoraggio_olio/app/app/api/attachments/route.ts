@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 
 // Schema di validazione per la creazione di allegati
@@ -126,7 +127,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Crea l'allegato
       const attachment = await tx.attachment.create({
         data: {
