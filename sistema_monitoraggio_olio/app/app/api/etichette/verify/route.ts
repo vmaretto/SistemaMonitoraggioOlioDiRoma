@@ -54,11 +54,11 @@ export async function POST(request: NextRequest) {
     // OTTIMIZZAZIONE: Prima confronto testuale su tutte, poi visual solo sulla migliore
     let textualComparison: any = null;
     
-    // Fase 1: Confronto testuale veloce per pre-selezione
-    console.log(`🔍 Step 3: Confronto testuale con ${etichette.length} etichette ufficiali...`);
-    const textualScores: Array<{ etichetta: any; textComparison: any }> = [];
+    // Fase 1: Confronto testuale veloce per pre-selezione (PARALLELIZZATO)
+    console.log(`🔍 Step 3: Confronto testuale PARALLELO con ${etichette.length} etichette ufficiali...`);
     
-    for (const etichetta of etichette) {
+    // Parallelizza tutti i confronti testuali con Promise.all
+    const textualScoresPromises = etichette.map(async (etichetta) => {
       try {
         const textComparison = await compareTextWithOfficialLabel(testoOcr, {
           nome: etichetta.nome,
@@ -67,12 +67,16 @@ export async function POST(request: NextRequest) {
           regioneProduzione: etichetta.regioneProduzione
         });
         
-        textualScores.push({ etichetta, textComparison });
+        return { etichetta, textComparison };
       } catch (error) {
         console.error(`❌ Errore confronto testuale etichetta ${etichetta.id}:`, error);
-        continue;
+        return null;
       }
-    }
+    });
+    
+    // Attendi tutti i confronti in parallelo e filtra i null
+    const textualScoresRaw = await Promise.all(textualScoresPromises);
+    const textualScores = textualScoresRaw.filter((score): score is { etichetta: any; textComparison: any } => score !== null);
 
     // Ordina per score testuale e prendi SOLO la migliore candidata
     const topCandidates = textualScores
@@ -146,7 +150,7 @@ export async function POST(request: NextRequest) {
         violazioniRilevate: violazioniCombinate,
         note: `Analisi conformità DOP/IGP: ${conformity.note}\n\nConfronto testuale: ${textualComparison?.reasoning || 'Non disponibile'}\n\nAnalisi visiva: ${visualComparison?.explanation || 'Non disponibile'}`,
         stato: 'verificata',
-        ...(bestMatch && { etichettaUfficialeId: bestMatch.id })
+        ...(bestMatch && { etichettaRiferimento: bestMatch.id })
       }
     });
 

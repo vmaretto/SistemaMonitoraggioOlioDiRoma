@@ -61,13 +61,13 @@ export default function VerifyEtichettaPage() {
     const formData = new FormData();
     formData.append('file', file);
 
-    // Messaggi di progresso simulati
+    // Messaggi di progresso ottimizzati (workflow parallelizzato)
     const progressSteps = [
       { percent: 15, message: '📸 Estrazione testo dall\'immagine con OCR...', delay: 1000 },
-      { percent: 35, message: '📋 Analisi conformità DOP/IGP...', delay: 3000 },
-      { percent: 60, message: '🔍 Confronto con etichette ufficiali...', delay: 5000 },
-      { percent: 85, message: '👁️ Analisi visiva approfondita...', delay: 8000 },
-      { percent: 95, message: '💾 Finalizzazione verifica...', delay: 11000 }
+      { percent: 30, message: '📋 Analisi conformità DOP/IGP...', delay: 4000 },
+      { percent: 55, message: '⚡ Confronto testuale parallelo (12 etichette)...', delay: 7000 },
+      { percent: 80, message: '👁️ Confronto visivo con etichetta migliore...', delay: 12000 },
+      { percent: 95, message: '💾 Salvataggio verifica e creazione alert...', delay: 22000 }
     ];
 
     const startTime = Date.now();
