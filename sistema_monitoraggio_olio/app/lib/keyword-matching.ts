@@ -1,10 +1,8 @@
 
 
 /**
- * Utility functions for keyword matching and relevance calculation with AI integration
+ * Utility functions for keyword matching and relevance calculation
  */
-
-import { aiClient } from './ai-client';
 
 interface KeywordMatch {
   keyword: string;
@@ -83,42 +81,15 @@ function escapeRegex(string: string): string {
 
 /**
  * Processo un contenuto con AI e determina se deve essere monitorato
+ * @deprecated Funzione legacy - AI analysis ora gestita direttamente dai servizi OpenAI
  */
 export async function processContentForMonitoringAI(
   text: string, 
   activeKeywords: string[]
 ): Promise<{ shouldMonitor: boolean; keywords: string[]; relevance: number; aiInsights?: any }> {
-  try {
-    // Usa AI per analisi completa
-    const aiAnalysis = await aiClient.analyzeContent(text, activeKeywords);
-    
-    // Combina keyword trovate + keyword semantiche
-    const allKeywords = [
-      ...aiAnalysis.keywords.keywords,
-      ...aiAnalysis.keywords.semanticKeywords
-    ];
-    
-    const shouldMonitor = allKeywords.length > 0 || aiAnalysis.classification.shouldAlert;
-    const relevance = Math.max(
-      aiAnalysis.keywords.relevanceScore,
-      aiAnalysis.classification.urgency * 10
-    );
-
-    return {
-      shouldMonitor,
-      keywords: allKeywords,
-      relevance: Math.min(100, relevance),
-      aiInsights: {
-        sentiment: aiAnalysis.sentiment,
-        classification: aiAnalysis.classification,
-        keywordData: aiAnalysis.keywords
-      }
-    };
-  } catch (error) {
-    console.warn('⚠️ AI processing fallito, uso logica base:', error instanceof Error ? error.message : 'Errore sconosciuto');
-    // Fallback alla logica originale
-    return processContentForMonitoring(text, activeKeywords);
-  }
+  // Fallback automatico alla logica base
+  console.warn('⚠️ processContentForMonitoringAI è deprecated, uso logica base');
+  return processContentForMonitoring(text, activeKeywords);
 }
 
 /**
@@ -139,65 +110,54 @@ export function processContentForMonitoring(
 }
 
 /**
- * Analisi sentiment intelligente con AI (con fallback simulato)
+ * Analisi sentiment intelligente (fallback logica base)
+ * @note Per AI analysis completa usa il servizio OpenAI direttamente
  */
 export async function analyzeSentiment(text: string): Promise<{ sentiment: string; score: number; confidence?: number; reasoning?: string }> {
-  try {
-    const aiResult = await aiClient.analyzeSentiment(text, 'olio extravergine');
-    return {
-      sentiment: aiResult.sentiment,
-      score: aiResult.score,
-      confidence: aiResult.confidence,
-      reasoning: aiResult.reasoning
-    };
-  } catch (error) {
-    console.warn('⚠️ AI sentiment analysis fallito, uso logica simulata:', error instanceof Error ? error.message : 'Errore sconosciuto');
-    
-    // Fallback alla logica simulata
-    const lowerText = text.toLowerCase();
-    
-    const positiveWords = [
-      'ottimo', 'eccellente', 'buono', 'fantastico', 'delizioso', 'perfetto',
-      'consiglio', 'meraviglioso', 'stupendo', 'genuino', 'autentico', 'tradizionale',
-      'qualità', 'premium', 'fresco', 'naturale', 'bio', 'biologico'
-    ];
-    
-    const negativeWords = [
-      'pessimo', 'terribile', 'cattivo', 'disgustoso', 'amaro', 'rancido',
-      'scaduto', 'caro', 'costoso', 'deludente', 'insapore', 'artificiale',
-      'industriale', 'scarsa qualità', 'non consiglio', 'evitate'
-    ];
+  // Usa logica simulata come fallback
+  const lowerText = text.toLowerCase();
+  
+  const positiveWords = [
+    'ottimo', 'eccellente', 'buono', 'fantastico', 'delizioso', 'perfetto',
+    'consiglio', 'meraviglioso', 'stupendo', 'genuino', 'autentico', 'tradizionale',
+    'qualità', 'premium', 'fresco', 'naturale', 'bio', 'biologico'
+  ];
+  
+  const negativeWords = [
+    'pessimo', 'terribile', 'cattivo', 'disgustoso', 'amaro', 'rancido',
+    'scaduto', 'caro', 'costoso', 'deludente', 'insapore', 'artificiale',
+    'industriale', 'scarsa qualità', 'non consiglio', 'evitate'
+  ];
 
-    let positiveScore = 0;
-    let negativeScore = 0;
+  let positiveScore = 0;
+  let negativeScore = 0;
 
-    positiveWords.forEach(word => {
-      const matches = (lowerText.match(new RegExp(escapeRegex(word), 'g')) || []).length;
-      positiveScore += matches;
-    });
+  positiveWords.forEach(word => {
+    const matches = (lowerText.match(new RegExp(escapeRegex(word), 'g')) || []).length;
+    positiveScore += matches;
+  });
 
-    negativeWords.forEach(word => {
-      const matches = (lowerText.match(new RegExp(escapeRegex(word), 'g')) || []).length;
-      negativeScore += matches;
-    });
+  negativeWords.forEach(word => {
+    const matches = (lowerText.match(new RegExp(escapeRegex(word), 'g')) || []).length;
+    negativeScore += matches;
+  });
 
-    const totalScore = positiveScore - negativeScore;
-    let sentiment = 'neutro';
-    let score = 0;
+  const totalScore = positiveScore - negativeScore;
+  let sentiment = 'neutro';
+  let score = 0;
 
-    if (totalScore > 0) {
-      sentiment = 'positivo';
-      score = Math.min(0.9, 0.1 + (totalScore * 0.2));
-    } else if (totalScore < 0) {
-      sentiment = 'negativo';
-      score = Math.max(-0.9, -0.1 + (totalScore * 0.2));
-    }
-
-    return { 
-      sentiment, 
-      score,
-      confidence: 0.3,
-      reasoning: 'Analisi fallback (AI temporaneamente non disponibile)'
-    };
+  if (totalScore > 0) {
+    sentiment = 'positivo';
+    score = Math.min(0.9, 0.1 + (totalScore * 0.2));
+  } else if (totalScore < 0) {
+    sentiment = 'negativo';
+    score = Math.max(-0.9, -0.1 + (totalScore * 0.2));
   }
+
+  return { 
+    sentiment, 
+    score,
+    confidence: 0.3,
+    reasoning: 'Analisi fallback (AI temporaneamente non disponibile)'
+  };
 }

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { extractTextFromLabel, analyzeConformity, compareLabelsVisually } from '@/src/services/openai';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,127 +22,95 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File immagine richiesto' }, { status: 400 });
     }
 
-    // Simulazione OCR - In realtà useresti il LLM API per estrarre il testo
+    // Converti immagine in base64
     const buffer = await file.arrayBuffer();
     const base64String = Buffer.from(buffer).toString('base64');
 
-    // Chiamata al LLM API per OCR simulato
-    const ocrResponse = await fetch('https://apps.abacus.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.ABACUSAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4.1-mini',
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: 'Estrai tutto il testo visibile da questa etichetta di olio d\'oliva. Concentrati su: nome prodotto, produttore, denominazione (DOP/IGP), zona geografica, volume, anno di raccolta, e qualsiasi altro testo presente. Fornisci solo il testo estratto, senza commenti aggiuntivi.'
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:image/jpeg;base64,${base64String}`
-              }
-            }
-          ]
-        }],
-        max_tokens: 1000
-      })
+    // 1. OCR con OpenAI Vision
+    const testoOcr = await extractTextFromLabel(base64String);
+
+    // 2. Analisi conformità testuale
+    const conformity = await analyzeConformity(testoOcr);
+
+    // 3. Cerca etichetta ufficiale corrispondente nel repository
+    const etichette = await prisma.etichetteUfficiali.findMany({
+      where: { isAttiva: true },
+      orderBy: { createdAt: 'desc' }
     });
 
-    if (!ocrResponse.ok) {
-      throw new Error('Errore nell\'estrazione OCR');
+    let bestMatch: any = null;
+    let highestScore = 0;
+    let visualComparison: any = null;
+
+    // Confronta con ogni etichetta ufficiale per trovare il miglior match
+    for (const etichetta of etichette) {
+      if (!etichetta.imageUrl) continue;
+
+      try {
+        // Scarica l'immagine di riferimento
+        const refImageResponse = await fetch(etichetta.imageUrl);
+        if (!refImageResponse.ok) continue;
+
+        const refBuffer = await refImageResponse.arrayBuffer();
+        const refBase64 = Buffer.from(refBuffer).toString('base64');
+
+        // Confronto visivo con OpenAI Vision
+        const comparison = await compareLabelsVisually(base64String, refBase64);
+
+        // Calcola score combinato: 50% testuale + 50% visivo
+        const textualScore = conformity.percentualeMatch;
+        const visualScore = comparison.similarity;
+        const combinedScore = (textualScore * 0.5) + (visualScore * 0.5);
+
+        if (combinedScore > highestScore) {
+          highestScore = combinedScore;
+          bestMatch = etichetta;
+          visualComparison = comparison;
+        }
+      } catch (error) {
+        console.error(`Errore confronto con etichetta ${etichetta.id}:`, error);
+        continue;
+      }
     }
 
-    const ocrData = await ocrResponse.json();
-    const testoOcr = ocrData.choices?.[0]?.message?.content || '';
-
-    // Analisi conformità con LLM
-    const conformityResponse = await fetch('https://apps.abacus.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.ABACUSAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4.1-mini',
-        messages: [{
-          role: 'user',
-          content: `Analizza la conformità di questa etichetta di olio d'oliva del Lazio/Roma.
-
-Testo estratto dall'etichetta: "${testoOcr}"
-
-Verifica la presenza di:
-1. Violazioni per uso improprio di simboli romani (Colosseo, Lupa Capitolina, SPQR, Campidoglio)
-2. Evocazioni non autorizzate del territorio romano
-3. Riferimenti geografici non conformi
-4. Denominazioni DOP/IGP non corrette
-
-Confronta con le etichette ufficiali del database e fornisci:
-{
-  "risultato": "conforme|non_conforme|sospetta",
-  "percentualeMatch": numero_0_100,
-  "violazioni": ["lista_violazioni_trovate"],
-  "note": "spiegazione_dettagliata",
-  "raccomandazioni": "suggerimenti_per_conformità"
-}
-
-Rispondi solo con JSON valido.`
-        }],
-        max_tokens: 1000,
-        temperature: 0.2
-      })
-    });
-
-    const conformityData = await conformityResponse.json();
-    let analysis;
-    
-    try {
-      analysis = JSON.parse(conformityData.choices?.[0]?.message?.content || '{}');
-    } catch {
-      // Fallback analysis
-      const paroleBanned = ['colosseo', 'lupa capitolina', 'spqr', 'campidoglio'];
-      const testoLower = testoOcr.toLowerCase();
-      const violazioniTrovate = paroleBanned.filter(parola => testoLower.includes(parola));
-      
-      analysis = {
-        risultato: violazioniTrovate.length > 0 ? 'non_conforme' : 'conforme',
-        percentualeMatch: violazioniTrovate.length > 0 ? 25 : 85,
-        violazioni: violazioniTrovate.map(v => `uso_non_autorizzato_${v.replace(' ', '_')}`),
-        note: violazioniTrovate.length > 0 ? 
-          `Rilevate violazioni: ${violazioniTrovate.join(', ')}` : 
-          'Etichetta sembra conforme agli standard',
-        raccomandazioni: violazioniTrovate.length > 0 ? 
-          'Rimuovere i riferimenti non autorizzati ai simboli romani' : 
-          'Etichetta approvata'
-      };
+    // Determina risultato finale basato su score combinato
+    let risultatoFinale: string;
+    if (highestScore >= 80) {
+      risultatoFinale = 'conforme';
+    } else if (highestScore >= 50) {
+      risultatoFinale = visualComparison?.verdict === 'contraffatta' ? 'non_conforme' : 'sospetta';
+    } else {
+      risultatoFinale = 'non_conforme';
     }
+
+    // Combina violazioni testuali e visive
+    const violazioniCombinate = [
+      ...conformity.violazioni,
+      ...(visualComparison?.differences || [])
+    ];
 
     // Salva la verifica nel database
     const verifica = await prisma.verificheEtichette.create({
       data: {
-        imageUrl: `upload_${Date.now()}.jpg`, // In produzione sarebbe l'URL S3
+        imageUrl: `upload_${Date.now()}.jpg`,
         testoOcr,
-        risultatoMatching: analysis.risultato,
-        percentualeMatch: analysis.percentualeMatch,
-        violazioniRilevate: analysis.violazioni || [],
-        note: analysis.note,
-        stato: 'verificata'
+        risultatoMatching: risultatoFinale,
+        percentualeMatch: Math.round(highestScore),
+        violazioniRilevate: violazioniCombinate,
+        note: `Analisi testuale: ${conformity.note}\n\nAnalisi visiva: ${visualComparison?.explanation || 'Non disponibile'}`,
+        stato: 'verificata',
+        ...(bestMatch && { etichettaUfficialeId: bestMatch.id })
       }
     });
 
-    // Crea alert se non conforme
-    if (analysis.risultato === 'non_conforme' || analysis.risultato === 'sospetta') {
+    // Crea alert se non conforme o sospetto
+    if (risultatoFinale === 'non_conforme' || risultatoFinale === 'sospetta') {
       await prisma.alert.create({
         data: {
           tipo: 'etichetta_sospetta',
-          priorita: analysis.risultato === 'non_conforme' ? 'critico' : 'medio',
-          titolo: `Etichetta ${analysis.risultato === 'non_conforme' ? 'non conforme' : 'sospetta'} rilevata`,
-          descrizione: `Verifica etichetta: ${analysis.note}. Violazioni: ${analysis.violazioni?.join(', ') || 'Nessuna'}`,
+          priorita: risultatoFinale === 'non_conforme' ? 'critico' : 'medio',
+          titolo: `Etichetta ${risultatoFinale === 'non_conforme' ? 'non conforme' : 'sospetta'} rilevata`,
+          descrizione: `Score combinato: ${Math.round(highestScore)}%. Violazioni: ${violazioniCombinate.slice(0, 3).join(', ')}${violazioniCombinate.length > 3 ? '...' : ''}`,
           fonte: verifica.id
         }
       });
@@ -151,12 +120,28 @@ Rispondi solo con JSON valido.`
       success: true,
       verifica: {
         id: verifica.id,
+        imageUrl: verifica.imageUrl,
         testoOcr,
-        risultato: analysis.risultato,
-        percentualeMatch: analysis.percentualeMatch,
-        violazioni: analysis.violazioni,
-        note: analysis.note,
-        raccomandazioni: analysis.raccomandazioni
+        risultatoMatching: risultatoFinale,
+        percentualeMatch: Math.round(highestScore),
+        violazioniRilevate: violazioniCombinate,
+        note: verifica.note,
+        etichettaUfficiale: bestMatch ? {
+          nome: bestMatch.nome,
+          imageUrl: bestMatch.imageUrl,
+          produttore: bestMatch.produttore,
+          denominazione: bestMatch.denominazione
+        } : undefined,
+        analisiTestuale: {
+          risultato: conformity.risultato,
+          score: conformity.percentualeMatch,
+          violazioni: conformity.violazioni
+        },
+        analisiVisiva: visualComparison ? {
+          similarity: visualComparison.similarity,
+          verdict: visualComparison.verdict,
+          differences: visualComparison.differences
+        } : undefined
       }
     });
 

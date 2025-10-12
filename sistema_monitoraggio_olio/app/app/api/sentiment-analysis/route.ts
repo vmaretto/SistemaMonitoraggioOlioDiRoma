@@ -2,6 +2,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import OpenAI from 'openai';
+
+// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export const dynamic = 'force-dynamic';
 
@@ -19,54 +23,45 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Testo richiesto per l\'analisi' }, { status: 400 });
     }
 
-    // Chiamata al LLM API per sentiment analysis
-    const response = await fetch('https://apps.abacus.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.ABACUSAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4.1-mini',
-        messages: [{
-          role: 'user',
-          content: `Analizza il sentiment del seguente testo relativo all'olio d'oliva del Lazio/Roma e alle sue etichette.
-
-Testo da analizzare: "${testo}"
-
-Keywords di riferimento: ${keywords?.join(', ') || 'Olio Roma, Olio Lazio'}
-
-Fornisci una risposta JSON con:
+    // Chiamata a OpenAI per sentiment analysis
+    const response = await openai.chat.completions.create({
+      model: "gpt-5",
+      messages: [
+        {
+          role: "system",
+          content: `Sei un esperto di analisi del sentiment per contenuti relativi all'olio d'oliva del Lazio/Roma e alle sue etichette.
+Rispondi sempre in JSON con questo formato:
 {
-  "sentiment": "positivo|neutro|negativo",
-  "sentimentScore": numero_tra_-1_e_1,
-  "rilevanza": numero_0_100,
+  "sentiment": "positivo" | "neutro" | "negativo",
+  "sentimentScore": number (da -1 a 1),
+  "rilevanza": number (0-100),
   "keywordsRilevate": ["keyword1", "keyword2"],
-  "ragionamento": "spiegazione_breve"
+  "ragionamento": "spiegazione breve"
 }
 
 Considera:
 - Sentiment positivo: apprezzamento, qualità, tradizione
 - Sentiment negativo: critiche, problemi, delusioni  
 - Rilevanza alta: contenuti specifici su DOP/IGP, produttori del Lazio
-- Rilevanza bassa: menzioni generiche o fuori contesto
+- Rilevanza bassa: menzioni generiche o fuori contesto`
+        },
+        {
+          role: "user",
+          content: `Analizza il sentiment di questo testo:
 
-Rispondi solo con JSON valido.`
-        }],
-        max_tokens: 1000,
-        temperature: 0.3
-      })
+"${testo}"
+
+Keywords di riferimento: ${keywords?.join(', ') || 'Olio Roma, Olio Lazio'}`
+        }
+      ],
+      response_format: { type: "json_object" },
+      max_completion_tokens: 1000
     });
 
-    if (!response.ok) {
-      throw new Error('Errore nella chiamata al LLM API');
-    }
-
-    const data = await response.json();
-    const analysisText = data.choices?.[0]?.message?.content;
+    const analysisText = response.choices?.[0]?.message?.content;
 
     if (!analysisText) {
-      throw new Error('Risposta del LLM API non valida');
+      throw new Error('Risposta OpenAI non valida');
     }
 
     // Parse della risposta JSON
@@ -74,7 +69,7 @@ Rispondi solo con JSON valido.`
     try {
       analysis = JSON.parse(analysisText);
     } catch (parseError) {
-      console.error('Errore nel parsing della risposta LLM:', analysisText);
+      console.error('Errore nel parsing della risposta OpenAI:', analysisText);
       // Fallback con analisi basica
       analysis = {
         sentiment: testo.toLowerCase().includes('buon') || testo.toLowerCase().includes('ottim') || 

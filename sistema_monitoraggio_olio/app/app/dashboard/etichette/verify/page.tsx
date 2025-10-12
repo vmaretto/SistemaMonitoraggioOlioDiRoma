@@ -28,6 +28,16 @@ interface VerificationResult {
     produttore: string;
     denominazione: string;
   };
+  analisiTestuale?: {
+    risultato: string;
+    score: number;
+    violazioni: string[];
+  };
+  analisiVisiva?: {
+    similarity: number;
+    verdict: string;
+    differences: string[];
+  };
 }
 
 export default function VerifyEtichettaPage() {
@@ -201,13 +211,16 @@ export default function VerifyEtichettaPage() {
             )}
 
             <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <h3 className="font-semibold text-blue-900 mb-2">Cosa viene verificato:</h3>
+              <h3 className="font-semibold text-blue-900 mb-2 flex items-center">
+                <Zap className="h-4 w-4 mr-2" />
+                Sistema di Verifica Dual-Layer (OpenAI Vision):
+              </h3>
               <ul className="text-sm text-blue-800 space-y-1">
-                <li>• Conformità con etichette ufficiali del database Agroqualità</li>
-                <li>• Uso corretto di denominazioni DOP, IGP e biologiche</li>
-                <li>• Rilevamento di simboli romani non autorizzati (Colosseo, Lupa Capitolina)</li>
-                <li>• Verifica terminologie geografiche (es. "romanesco")</li>
-                <li>• Matching percentuale con etichette di riferimento</li>
+                <li>• <strong>OCR Testuale:</strong> Estrazione e analisi del testo con GPT-5 Vision</li>
+                <li>• <strong>Visual Matching:</strong> Confronto diretto immagini con repository ufficiale</li>
+                <li>• <strong>Score Combinato:</strong> 50% match testuale + 50% similarity visiva</li>
+                <li>• <strong>Rilevamento:</strong> Violazioni DOP/IGP, simboli non autorizzati, contraffazioni</li>
+                <li>• <strong>Riferimenti:</strong> Database etichette ufficiali Agroqualità/Consorzio</li>
               </ul>
             </div>
           </CardContent>
@@ -322,16 +335,97 @@ export default function VerifyEtichettaPage() {
             )}
           </div>
 
+          {/* Analisi Dettagliata */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Analisi Testuale */}
+            {verificationResult.analisiTestuale && (
+              <Card className={verificationResult.analisiTestuale.risultato === 'conforme' ? 'border-green-200' : 'border-orange-200'}>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <CheckCircle className="h-5 w-5 mr-2" />
+                    Analisi Testuale (OCR)
+                  </CardTitle>
+                  <CardDescription>
+                    Verifica conformità basata sul testo estratto
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium">Risultato:</span>
+                      <Badge variant={verificationResult.analisiTestuale.risultato === 'conforme' ? 'default' : 'secondary'}>
+                        {verificationResult.analisiTestuale.risultato}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium">Score Testuale:</span>
+                      <span className="text-lg font-bold">{verificationResult.analisiTestuale.score}%</span>
+                    </div>
+                    {verificationResult.analisiTestuale.violazioni.length > 0 && (
+                      <div>
+                        <p className="text-sm font-medium mb-2">Violazioni Testuali:</p>
+                        <ul className="text-sm text-muted-foreground space-y-1">
+                          {verificationResult.analisiTestuale.violazioni.map((v, i) => (
+                            <li key={i}>• {v}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Analisi Visiva */}
+            {verificationResult.analisiVisiva && (
+              <Card className={verificationResult.analisiVisiva.verdict === 'identica' || verificationResult.analisiVisiva.verdict === 'simile' ? 'border-green-200' : 'border-red-200'}>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <ImageIcon className="h-5 w-5 mr-2" />
+                    Analisi Visiva (AI Vision)
+                  </CardTitle>
+                  <CardDescription>
+                    Confronto diretto con etichetta ufficiale
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium">Verdetto Visivo:</span>
+                      <Badge variant={verificationResult.analisiVisiva.verdict === 'contraffatta' ? 'destructive' : 'default'}>
+                        {verificationResult.analisiVisiva.verdict}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium">Similarity Visiva:</span>
+                      <span className="text-lg font-bold">{verificationResult.analisiVisiva.similarity}%</span>
+                    </div>
+                    {verificationResult.analisiVisiva.differences.length > 0 && (
+                      <div>
+                        <p className="text-sm font-medium mb-2">Differenze Visive:</p>
+                        <ul className="text-sm text-muted-foreground space-y-1">
+                          {verificationResult.analisiVisiva.differences.map((d, i) => (
+                            <li key={i}>• {d}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
           {/* Violazioni */}
           {verificationResult.violazioniRilevate.length > 0 && (
             <Card className="border-red-200">
               <CardHeader>
                 <CardTitle className="text-red-800 flex items-center">
                   <AlertTriangle className="h-5 w-5 mr-2" />
-                  Violazioni Rilevate
+                  Tutte le Violazioni Rilevate
                 </CardTitle>
                 <CardDescription>
-                  Sono state rilevate le seguenti non conformità che richiedono attenzione
+                  Violazioni combinate da analisi testuale e visiva
                 </CardDescription>
               </CardHeader>
               <CardContent>
