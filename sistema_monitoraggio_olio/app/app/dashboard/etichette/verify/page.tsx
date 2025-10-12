@@ -52,7 +52,7 @@ export default function VerifyEtichettaPage() {
   const handleFileUpload = useCallback(async (file: File) => {
     console.log('🎯 File selezionato:', file.name);
     
-    console.log('📤 Inizio upload e analisi...');
+    console.log('📤 Inizio upload e analisi con SSE...');
     setUploadLoading(true);
     setError(null);
     setVerificationResult(null);
@@ -65,44 +65,97 @@ export default function VerifyEtichettaPage() {
 
     const startTime = Date.now();
 
-    // Mostra i 5 step progressivi con setTimeout semplici (no interval, più robusto)
-    setTimeout(() => { setProgressPercent(10); setProgressMessage('📸 Estrazione testo dall\'immagine con OCR...'); setElapsedTime(Math.floor((Date.now() - startTime) / 1000)); }, 500);
-    setTimeout(() => { setProgressPercent(25); setProgressMessage('📋 Analisi conformità DOP/IGP...'); setElapsedTime(Math.floor((Date.now() - startTime) / 1000)); }, 4000);
-    setTimeout(() => { setProgressPercent(50); setProgressMessage('⚡ Confronto testuale parallelo (12 etichette)...'); setElapsedTime(Math.floor((Date.now() - startTime) / 1000)); }, 8000);
-    setTimeout(() => { setProgressPercent(75); setProgressMessage('👁️ Confronto visivo con etichetta migliore...'); setElapsedTime(Math.floor((Date.now() - startTime) / 1000)); }, 15000);
-    setTimeout(() => { setProgressPercent(90); setProgressMessage('💾 Salvataggio verifica e creazione alert...'); setElapsedTime(Math.floor((Date.now() - startTime) / 1000)); }, 25000);
-
     // Timeout controller per 120 secondi
     const controller = new AbortController();
     const abortTimeout = setTimeout(() => controller.abort(), 120000);
 
     try {
-      console.log('🚀 Invio richiesta POST a /api/etichette/verify...');
+      console.log('🚀 Invio richiesta POST SSE a /api/etichette/verify...');
       const response = await fetch('/api/etichette/verify', {
         method: 'POST',
         body: formData,
-        signal: controller.signal
+        signal: controller.signal,
+        credentials: 'include',
+        cache: 'no-store'
       });
-      console.log('📨 Risposta ricevuta:', response.status, response.ok);
 
       clearTimeout(abortTimeout);
 
-      if (response.ok) {
-        const data = await response.json();
-        const totalTime = Math.floor((Date.now() - startTime) / 1000);
-        setElapsedTime(totalTime);
-        setProgressPercent(100);
-        setProgressMessage(`✅ Verifica completata in ${totalTime} secondi!`);
-        console.log(`✓ Analisi completata in ${totalTime} secondi`);
-        setTimeout(() => {
-          setVerificationResult(data.verifica);
-          setUploadLoading(false);
-        }, 1000);
-      } else {
+      if (!response.ok) {
         const errorData = await response.json();
         setError(errorData.error || 'Errore durante la verifica');
         setUploadLoading(false);
+        return;
       }
+
+      // Leggi stream SSE
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        setError('Impossibile leggere la risposta del server');
+        setUploadLoading(false);
+        return;
+      }
+
+      let buffer = '';
+      let streamComplete = false;
+
+      while (!streamComplete) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        
+        // Elabora tutti gli eventi completi
+        for (let i = 0; i < lines.length - 1; i++) {
+          const line = lines[i].trim();
+          if (line.startsWith('data: ')) {
+            try {
+              const eventData = JSON.parse(line.substring(6));
+              const currentTime = Math.floor((Date.now() - startTime) / 1000);
+              setElapsedTime(currentTime);
+
+              console.log('📨 Evento SSE ricevuto:', eventData);
+
+              if (eventData.type === 'progress') {
+                setProgressPercent(eventData.progress || 0);
+                setProgressMessage(eventData.message || '');
+                console.log(`✓ ${eventData.message} (${eventData.progress}%)`);
+              } else if (eventData.type === 'complete') {
+                const totalTime = Math.floor((Date.now() - startTime) / 1000);
+                setElapsedTime(totalTime);
+                setProgressPercent(100);
+                setProgressMessage(`✅ Verifica completata in ${totalTime} secondi!`);
+                console.log(`✓ Analisi completata in ${totalTime} secondi`);
+                
+                setTimeout(() => {
+                  setVerificationResult(eventData.data.verifica);
+                  setUploadLoading(false);
+                }, 1000);
+                
+                streamComplete = true;
+                break;
+              } else if (eventData.type === 'error') {
+                setError(eventData.message || 'Errore durante la verifica');
+                setUploadLoading(false);
+                streamComplete = true;
+                break;
+              }
+            } catch (parseError) {
+              console.error('Errore parsing evento SSE:', parseError, line);
+            }
+          }
+        }
+
+        // Mantieni l'ultimo frammento incompleto nel buffer
+        buffer = lines[lines.length - 1];
+      }
+
+      reader.releaseLock();
+
     } catch (error) {
       clearTimeout(abortTimeout);
       console.error('Errore upload etichetta:', error);
