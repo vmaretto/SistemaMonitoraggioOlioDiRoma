@@ -80,6 +80,7 @@ model ContenutiMonitorati {
   piattaforma   String   // facebook, twitter, amazon, google, etc
   testo         String   @db.Text
   url           String?
+  imageUrl      String?  // URL dell'immagine rilevata nel contenuto
   autore        String?
   sentiment     String   // positivo, neutro, negativo
   sentimentScore Float   @default(0) // -1 a +1
@@ -87,8 +88,10 @@ model ContenutiMonitorati {
   dataPost      DateTime
   rilevanza     Int      @default(0) // 0-100
   isProcessed   Boolean  @default(true)
+  metadata      Json?    // metadati aggiuntivi (image info, etc)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  verifiche     VerificheEtichette[] // Relazione con verifiche
 }
 
 model EtichetteUfficiali {
@@ -117,6 +120,8 @@ model VerificheEtichette {
   percentualeMatch    Float              @default(0) // 0-100
   etichettaRiferimento String?
   etichettaUfficiale  EtichetteUfficiali? @relation(fields: [etichettaRiferimento], references: [id])
+  contenutoMonitoratoId String?          // Collegamento al contenuto che ha generato la verifica
+  contenutoMonitorato ContenutiMonitorati? @relation(fields: [contenutoMonitoratoId], references: [id])
   violazioniRilevate  String[]           // array delle violazioni
   note                String?            @db.Text
   stato               String             @default("da_verificare") // da_verificare, verificata, archiviata

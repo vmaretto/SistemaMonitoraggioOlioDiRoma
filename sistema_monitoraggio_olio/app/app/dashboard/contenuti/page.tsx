@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TrendingUp, TrendingDown, Minus, Search, Calendar, CalendarClock, ExternalLink } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Search, Calendar, CalendarClock, ExternalLink, Image as ImageIcon, Shield } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -20,6 +20,7 @@ interface ContenutoMonitorato {
   piattaforma: string;
   testo: string;
   url?: string;
+  imageUrl?: string;
   autore?: string;
   sentiment: string;
   sentimentScore: number;
@@ -66,6 +67,7 @@ export default function ContenutiPage() {
   const [highlightedIds, setHighlightedIds] = useState<string[]>([]);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [lastSyncNewCount, setLastSyncNewCount] = useState<number | null>(null);
+  const [verifyingContentId, setVerifyingContentId] = useState<string | null>(null);
   const router = useRouter();
 
   const itemsPerPage = 10;
@@ -223,6 +225,19 @@ export default function ContenutiPage() {
       alert('❌ Errore durante l\'aggiornamento');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerifyLabel = async (contenutoId: string, imageUrl: string) => {
+    setVerifyingContentId(contenutoId);
+    
+    try {
+      // Naviga alla pagina verifiche con parametri
+      router.push(`/dashboard/verifiche?verifyFromContent=${contenutoId}&imageUrl=${encodeURIComponent(imageUrl)}`);
+    } catch (error) {
+      console.error('Errore avvio verifica:', error);
+      alert('❌ Errore durante l\'avvio della verifica');
+      setVerifyingContentId(null);
     }
   };
 
@@ -761,12 +776,18 @@ export default function ContenutiPage() {
                 >
                   <CardHeader className="relative">
                     <div className="flex items-start justify-between">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 flex-wrap">
                         <span className="text-lg">{platformInfo.icon}</span>
                         <Badge className={platformInfo.color}>
                           {platformInfo.name}
                         </Badge>
                         <Badge variant="outline">{contenuto.fonte || 'N/A'}</Badge>
+                        {contenuto.imageUrl && (
+                          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                            <ImageIcon className="h-3 w-3 mr-1" />
+                            Contiene Immagine
+                          </Badge>
+                        )}
                         <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getSentimentColor(contenuto.sentiment)}`}>
                           {getSentimentIcon(contenuto.sentiment)}
                           <span>{contenuto.sentiment}</span>
@@ -804,16 +825,30 @@ export default function ContenutiPage() {
                       </Badge>
                     ))}
                   </div>
-                  {contenuto.url && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => window.open(contenuto.url, '_blank')}
-                    >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Visualizza
-                    </Button>
-                  )}
+                  <div className="flex gap-2">
+                    {contenuto.imageUrl && (
+                      <Button 
+                        variant="default"
+                        className="bg-purple-600 hover:bg-purple-700"
+                        size="sm" 
+                        onClick={() => handleVerifyLabel(contenuto.id, contenuto.imageUrl!)}
+                        disabled={verifyingContentId === contenuto.id}
+                      >
+                        <Shield className="h-4 w-4 mr-2" />
+                        {verifyingContentId === contenuto.id ? 'Avvio...' : 'Verifica Etichetta'}
+                      </Button>
+                    )}
+                    {contenuto.url && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => window.open(contenuto.url, '_blank')}
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Visualizza
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>

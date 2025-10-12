@@ -4,6 +4,7 @@
  */
 
 import { ProviderItem } from '../integrations/types';
+import { extractImageUrl } from '../utils/image-detection';
 
 // Tipi sentiment compatibili con database
 export type SentimentLabel = 'positivo' | 'neutro' | 'negativo';
@@ -15,12 +16,14 @@ export interface NormalizedMention {
   piattaforma: string;  // webzio, google_news, reddit
   testo: string;        // contenuto del post/articolo
   url?: string;         // URL originale
+  imageUrl?: string;    // URL immagine rilevata nel contenuto
   autore?: string;      // autore del contenuto
   sentiment: string;    // positivo, neutro, negativo
   sentimentScore: number; // -1 a +1
   keywords: string[];   // keyword trovate
   dataPost: Date;       // data pubblicazione
   rilevanza: number;    // 0-100
+  metadata?: any;       // metadati aggiuntivi
   
   // Metadati aggiuntivi (non database)
   source: 'webzio' | 'serpapi_google_news' | 'serpapi_reddit';
@@ -105,18 +108,24 @@ export function normalizeProviderItem(item: ProviderItem, sourceProvider: string
     piattaforma = piattaforma.replace('_real', '_demo');
   }
   
+  // Estrai URL immagine dal contenuto
+  const testoCompleto = item.text || item.title || '';
+  const imageUrl = extractImageUrl(testoCompleto, item.url, item.raw);
+  
   return {
     // Campi database ContenutiMonitorati
     fonte: SOURCE_MAPPING[sourceProvider] || 'blog',
     piattaforma,
-    testo: item.text || item.title || '',
+    testo: testoCompleto,
     url: item.url,
+    imageUrl: imageUrl || undefined,
     autore: item.author,
     sentiment: sentimentLabel,
     sentimentScore: sentimentScore,
     keywords: extractKeywords(item.text, item.title),
     dataPost: publishedDate,
     rilevanza: calculateRelevance(item, sourceProvider),
+    metadata: item.raw || undefined,
     
     // Metadati aggiuntivi
     source: mapToSourceType(sourceProvider),
