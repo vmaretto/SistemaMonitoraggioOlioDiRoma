@@ -6,7 +6,7 @@ import { prisma } from '@/lib/db';
 import { extractTextFromLabel, analyzeConformity, compareLabelsVisually, compareTextWithOfficialLabel } from '@/src/services/openai';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60; // Timeout 60 secondi per chiamate OpenAI Vision
+export const maxDuration = 120; // Timeout 120 secondi per chiamate OpenAI Vision (OCR + confronti)
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,10 +32,14 @@ export async function POST(request: NextRequest) {
     const dataUrl = `data:${mimeType};base64,${base64String}`;
 
     // 1. OCR con OpenAI Vision
+    console.log('📸 Step 1: Estrazione testo con OCR...');
     const testoOcr = await extractTextFromLabel(base64String);
+    console.log('✅ Testo estratto:', testoOcr.substring(0, 100) + '...');
 
     // 2. Analisi conformità testuale
+    console.log('📋 Step 2: Analisi conformità DOP/IGP...');
     const conformity = await analyzeConformity(testoOcr);
+    console.log('✅ Conformità:', conformity.risultato);
 
     // 3. Cerca etichetta ufficiale corrispondente nel repository
     const etichette = await prisma.etichetteUfficiali.findMany({
@@ -47,10 +51,11 @@ export async function POST(request: NextRequest) {
     let highestScore = 0;
     let visualComparison: any = null;
 
-    // OTTIMIZZAZIONE: Prima confronto testuale su tutte, poi visual solo sulle migliori
+    // OTTIMIZZAZIONE: Prima confronto testuale su tutte, poi visual solo sulla migliore
     let textualComparison: any = null;
     
     // Fase 1: Confronto testuale veloce per pre-selezione
+    console.log(`🔍 Step 3: Confronto testuale con ${etichette.length} etichette ufficiali...`);
     const textualScores: Array<{ etichetta: any; textComparison: any }> = [];
     
     for (const etichetta of etichette) {
@@ -64,17 +69,18 @@ export async function POST(request: NextRequest) {
         
         textualScores.push({ etichetta, textComparison });
       } catch (error) {
-        console.error(`Errore confronto testuale etichetta ${etichetta.id}:`, error);
+        console.error(`❌ Errore confronto testuale etichetta ${etichetta.id}:`, error);
         continue;
       }
     }
 
-    // Ordina per score testuale e prendi le top 3 candidate
+    // Ordina per score testuale e prendi SOLO la migliore candidata
     const topCandidates = textualScores
       .sort((a, b) => b.textComparison.matchScore - a.textComparison.matchScore)
-      .slice(0, 3);
+      .slice(0, 1); // RIDOTTO DA 3 A 1 per massima velocità
 
-    console.log(`Confronto visivo su ${topCandidates.length} candidate (da ${etichette.length} totali)`);
+    console.log(`✅ Migliore match testuale: ${topCandidates[0]?.etichetta.nome || 'Nessuna'} (${topCandidates[0]?.textComparison.matchScore || 0}%)`);
+    console.log(`👁️ Step 4: Confronto visivo con la candidata migliore...`);
 
     // Fase 2: Confronto visivo solo sulle top candidate
     for (const { etichetta, textComparison } of topCandidates) {
@@ -96,6 +102,9 @@ export async function POST(request: NextRequest) {
         const visualScore = visualComp.similarity;
         const combinedScore = (textualScore * 0.5) + (visualScore * 0.5);
 
+        console.log(`✅ Analisi visiva completata: ${visualComp.verdict} (similarità ${visualScore}%)`);
+        console.log(`📊 Score finale combinato: ${Math.round(combinedScore)}% (${textualScore}% testo + ${visualScore}% visivo)`);
+
         if (combinedScore > highestScore) {
           highestScore = combinedScore;
           bestMatch = etichetta;
@@ -103,12 +112,13 @@ export async function POST(request: NextRequest) {
           textualComparison = textComparison;
         }
       } catch (error) {
-        console.error(`Errore confronto visivo etichetta ${etichetta.id}:`, error);
+        console.error(`❌ Errore confronto visivo etichetta ${etichetta.id}:`, error);
         continue;
       }
     }
 
     // Determina risultato finale basato su score combinato
+    console.log('🎯 Step 5: Determinazione risultato finale...');
     let risultatoFinale: string;
     if (highestScore >= 80) {
       risultatoFinale = 'conforme';
@@ -126,6 +136,7 @@ export async function POST(request: NextRequest) {
     ];
 
     // Salva la verifica nel database con data URL dell'immagine caricata
+    console.log(`💾 Step 6: Salvataggio verifica (${risultatoFinale})...`);
     const verifica = await prisma.verificheEtichette.create({
       data: {
         imageUrl: dataUrl,
@@ -141,6 +152,7 @@ export async function POST(request: NextRequest) {
 
     // Crea alert se non conforme o sospetto
     if (risultatoFinale === 'non_conforme' || risultatoFinale === 'sospetta') {
+      console.log(`🚨 Creazione alert per etichetta ${risultatoFinale}...`);
       await prisma.alert.create({
         data: {
           tipo: 'etichetta_sospetta',
@@ -151,6 +163,8 @@ export async function POST(request: NextRequest) {
         }
       });
     }
+
+    console.log(`✅ Verifica completata con successo! Risultato: ${risultatoFinale} (${Math.round(highestScore)}%)`);
 
     return NextResponse.json({
       success: true,
