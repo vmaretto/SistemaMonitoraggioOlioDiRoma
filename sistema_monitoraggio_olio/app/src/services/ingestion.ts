@@ -20,6 +20,11 @@ const prisma = new PrismaClient();
 /**
  * Risultato di un'operazione di ingestion
  */
+export interface SavedItemInfo {
+  id: string;
+  createdAt: Date;
+}
+
 export interface IngestionResult {
   success: boolean;
   profileId: string;
@@ -30,6 +35,8 @@ export interface IngestionResult {
   errors: IngestionError[];
   duration: number; // millisecondi
   nextTokens?: Record<string, string>; // per paginazione
+  savedItemIds?: string[];
+  savedItems?: SavedItemInfo[];
 }
 
 /**
@@ -108,7 +115,7 @@ export class MultiProviderIngestionService {
     }
 
     console.log(`🔄 Avvio ingestion per profilo: ${profile.name}`);
-    
+
     const result: IngestionResult = {
       success: false,
       profileId,
@@ -118,7 +125,9 @@ export class MultiProviderIngestionService {
       duplicatesSkipped: 0,
       errors: [],
       duration: 0,
-      nextTokens: {}
+      nextTokens: {},
+      savedItemIds: [],
+      savedItems: []
     };
 
     try {
@@ -147,11 +156,15 @@ export class MultiProviderIngestionService {
       
       // Salvataggio nel database
       if (opts.saveToDatabase && !opts.dryRun) {
-        const savedCount = await this.saveToDatabase(normalizedItems);
+        const { count: savedCount, items: savedItems } = await this.saveToDatabase(normalizedItems);
         result.newItems = savedCount;
         result.duplicatesSkipped = normalizedItems.length - savedCount;
+        result.savedItems = savedItems;
+        result.savedItemIds = savedItems.map(item => item.id);
       } else {
         result.newItems = normalizedItems.length;
+        result.savedItems = [];
+        result.savedItemIds = [];
       }
       
       // Determina successo: completo se nessun errore, parziale se alcuni provider falliti
@@ -430,13 +443,18 @@ export class MultiProviderIngestionService {
   /**
    * Salva i contenuti normalizzati nel database
    */
-  private async saveToDatabase(items: NormalizedMention[]): Promise<number> {
-    if (items.length === 0) return 0;
-    
+  private async saveToDatabase(
+    items: NormalizedMention[]
+  ): Promise<{ count: number; items: SavedItemInfo[] }> {
+    if (items.length === 0) {
+      return { count: 0, items: [] };
+    }
+
     let savedCount = 0;
-    
+    const savedItems: SavedItemInfo[] = [];
+
     console.log(`💾 Salvataggio ${items.length} item nel database...`);
-    
+
     for (const item of items) {
       try {
         // Verifica se esiste già nel database
@@ -455,7 +473,7 @@ export class MultiProviderIngestionService {
         });
         
         if (!existing) {
-          await prisma.contenutiMonitorati.create({
+          const created = await prisma.contenutiMonitorati.create({
             data: {
               testo: item.testo,
               url: item.url,
@@ -471,16 +489,20 @@ export class MultiProviderIngestionService {
           });
           
           savedCount++;
+          savedItems.push({
+            id: created.id,
+            createdAt: created.createdAt,
+          });
         }
-        
+
       } catch (error) {
         console.error(`❌ Errore salvataggio item "${item.testo.substring(0, 50)}...":`, error);
       }
     }
-    
+
     console.log(`✅ ${savedCount} nuovi item salvati nel database`);
-    
-    return savedCount;
+
+    return { count: savedCount, items: savedItems };
   }
 
   /**

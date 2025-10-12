@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TrendingUp, TrendingDown, Minus, Search, Calendar, ExternalLink } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Search, Calendar, CalendarClock, ExternalLink } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -29,6 +29,25 @@ interface ContenutoMonitorato {
   createdAt: string;
 }
 
+interface StoredSyncMetadata {
+  highlightedIds: string[];
+  syncAt?: string;
+  newCount?: number;
+}
+
+const LAST_SYNC_STORAGE_KEY = 'contenuti-monitorati:last-sync';
+
+interface IngestionApiResponse {
+  success: boolean;
+  message: string;
+  error?: string;
+  data?: {
+    newItems?: number;
+    savedItemIds?: string[];
+    [key: string]: any;
+  };
+}
+
 export default function ContenutiPage() {
   const [contenuti, setContenuti] = useState<ContenutoMonitorato[]>([]);
   const [activeKeywords, setActiveKeywords] = useState<string[]>([]);
@@ -44,6 +63,9 @@ export default function ContenutiPage() {
   const [syncLoading, setSyncLoading] = useState(false);
   const [aiTestLoading, setAiTestLoading] = useState(false);
   const [aiStatus, setAiStatus] = useState<string>('unknown');
+  const [highlightedIds, setHighlightedIds] = useState<string[]>([]);
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
+  const [lastSyncNewCount, setLastSyncNewCount] = useState<number | null>(null);
   const router = useRouter();
 
   const itemsPerPage = 10;
@@ -60,10 +82,36 @@ export default function ContenutiPage() {
     checkAiStatus();
   }, [currentPage, filterSentiment, filterFonte, filterKeyword, filterDataType, searchTerm]);
 
-  const fetchContenuti = async () => {
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     try {
+      const stored = window.localStorage.getItem(LAST_SYNC_STORAGE_KEY);
+      if (!stored) {
+        return;
+      }
+
+      const parsed: StoredSyncMetadata = JSON.parse(stored);
+      setHighlightedIds(parsed.highlightedIds || []);
+      if (parsed.syncAt) {
+        setLastSyncAt(parsed.syncAt);
+      }
+      if (typeof parsed.newCount === 'number') {
+        setLastSyncNewCount(parsed.newCount);
+      }
+    } catch (error) {
+      console.error('Errore lettura stato evidenziazione:', error);
+    }
+  }, []);
+
+  const fetchContenuti = async (pageOverride?: number) => {
+    try {
+      setLoading(true);
+      const pageToFetch = pageOverride ?? currentPage;
       const params = new URLSearchParams({
-        page: currentPage.toString(),
+        page: pageToFetch.toString(),
         limit: itemsPerPage.toString(),
         ...(searchTerm && { search: searchTerm }),
         ...(filterSentiment !== 'all' && { sentiment: filterSentiment }),
@@ -74,7 +122,13 @@ export default function ContenutiPage() {
 
       const response = await fetch(`/api/contenuti?${params}`);
       const data = await response.json();
-      setContenuti(data.contenuti || []);
+      const contenutiOrdinati: ContenutoMonitorato[] = (data.contenuti || []).slice().sort((a, b) => {
+        const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return createdB - createdA;
+      });
+
+      setContenuti(contenutiOrdinati);
       setActiveKeywords(data.activeKeywords || []);
       setTotalPages(Math.ceil((data.total || 0) / itemsPerPage));
     } catch (error) {
@@ -107,11 +161,36 @@ export default function ContenutiPage() {
           options: { maxItemsPerProvider: 20 }
         })
       });
-      const result = await response.json();
-      
+      const result: IngestionApiResponse = await response.json();
+
       if (response.ok && result.success) {
-        await fetchContenuti();
+        const newItemIds: string[] = result.data?.savedItemIds ?? [];
+        const newItemsCount: number | null = typeof result.data?.newItems === 'number'
+          ? result.data.newItems
+          : null;
+
+        if (currentPage !== 1) {
+          setCurrentPage(1);
+        }
+
+        await fetchContenuti(1);
         await fetchProviderStats();
+
+        const syncTimestamp = new Date().toISOString();
+        const computedNewCount = newItemsCount ?? (newItemIds.length > 0 ? newItemIds.length : 0);
+        const metadata: StoredSyncMetadata = {
+          highlightedIds: newItemIds,
+          syncAt: syncTimestamp,
+          newCount: computedNewCount,
+        };
+
+        setHighlightedIds(newItemIds);
+        setLastSyncAt(syncTimestamp);
+        setLastSyncNewCount(computedNewCount);
+
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(LAST_SYNC_STORAGE_KEY, JSON.stringify(metadata));
+        }
         alert(`✅ ${result.message}`);
       } else {
         alert(`❌ Errore: ${result.message || result.error}`);
@@ -441,16 +520,31 @@ export default function ContenutiPage() {
               Reset Filtri
             </Button>
           </div>
-          <div className="flex justify-between items-center">
-            <p className="text-sm text-muted-foreground">
-              {activeKeywords.length > 0 ? (
-                <>Keywords attive: <strong>{activeKeywords.join(', ')}</strong></>
-              ) : (
-                'Nessuna keyword attiva configurata'
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">
+                {activeKeywords.length > 0 ? (
+                  <>Keywords attive: <strong>{activeKeywords.join(', ')}</strong></>
+                ) : (
+                  'Nessuna keyword attiva configurata'
+                )}
+              </p>
+              {lastSyncAt && (
+                <p className="text-xs text-muted-foreground">
+                  Ultima sincronizzazione:{' '}
+                  <span className="font-medium text-foreground">
+                    {format(new Date(lastSyncAt), 'PPpp', { locale: it })}
+                  </span>
+                  {typeof lastSyncNewCount === 'number' && (
+                    <span className="ml-2">
+                      • Nuovi contenuti rilevati: <strong>{lastSyncNewCount}</strong>
+                    </span>
+                  )}
+                </p>
               )}
-            </p>
-            <div className="flex space-x-2">
-              <Button 
+            </div>
+            <div className="flex flex-wrap gap-2 md:justify-end">
+              <Button
                 onClick={syncMultiProvider}
                 variant={providerStats?.success ? "default" : "outline"}
                 size="sm"
@@ -653,9 +747,19 @@ export default function ContenutiPage() {
           contenuti.map((contenuto) => {
             try {
               const platformInfo = getPlatformDisplay(contenuto.piattaforma || '');
+              const isHighlighted = highlightedIds.includes(contenuto.id);
+              const publicationDate = contenuto.dataPost
+                ? format(new Date(contenuto.dataPost), 'PPp', { locale: it })
+                : 'Data non disponibile';
+              const syncDate = contenuto.createdAt
+                ? format(new Date(contenuto.createdAt), 'PPp', { locale: it })
+                : 'Data sincronizzazione non disponibile';
               return (
-                <Card key={contenuto.id}>
-                  <CardHeader>
+                <Card
+                  key={contenuto.id}
+                  className={`relative transition-all ${isHighlighted ? 'border-blue-400 bg-blue-50/60 shadow-md' : ''}`}
+                >
+                  <CardHeader className="relative">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-2">
                         <span className="text-lg">{platformInfo.icon}</span>
@@ -668,16 +772,27 @@ export default function ContenutiPage() {
                           <span>{contenuto.sentiment}</span>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                        <Calendar className="h-4 w-4" />
-                        {contenuto.dataPost ? format(new Date(contenuto.dataPost), 'PPp', { locale: it }) : 'Data non disponibile'}
+                      <div className="flex flex-col items-end space-y-1 text-xs md:text-sm text-muted-foreground">
+                        <div className="flex items-center space-x-2">
+                          <Calendar className="h-4 w-4" />
+                          <span>Pubblicato: {publicationDate}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <CalendarClock className="h-4 w-4" />
+                          <span>Rilevato: {syncDate}</span>
+                        </div>
                       </div>
-                </div>
-                <CardDescription>
-                  {contenuto.autore && `Da: ${contenuto.autore}`}
-                  <span className="ml-2">Rilevanza: {contenuto.rilevanza}%</span>
-                  <span className="ml-2">Score: {contenuto.sentimentScore.toFixed(2)}</span>
-                </CardDescription>
+                    </div>
+                    {isHighlighted && (
+                      <Badge className="absolute top-4 right-4 bg-blue-600 text-white">
+                        Nuovo
+                      </Badge>
+                    )}
+                    <CardDescription>
+                      {contenuto.autore && `Da: ${contenuto.autore}`}
+                      <span className="ml-2">Rilevanza: {contenuto.rilevanza}%</span>
+                      <span className="ml-2">Score: {contenuto.sentimentScore.toFixed(2)}</span>
+                    </CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-sm mb-4 line-clamp-3">{contenuto.testo || 'Contenuto non disponibile'}</p>
