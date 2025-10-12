@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "sistema_monitoraggio_olio/app/next.config.js",
+      "use": "@vercel/next"
+    }
+  ],
+  "env": {
+    "DATABASE_URL": "@database_url",
+    "NEXTAUTH_SECRET": "@nextauth_secret"
+  },
+  "framework": "nextjs",
+  "rootDirectory": "sistema_monitoraggio_olio/app"
+}
