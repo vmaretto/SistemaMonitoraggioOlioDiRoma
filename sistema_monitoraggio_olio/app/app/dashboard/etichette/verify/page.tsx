@@ -82,8 +82,12 @@ export default function VerifyEtichettaPage() {
       clearTimeout(abortTimeout);
 
       if (!response.ok) {
-        const errorData = await response.json();
-        setError(errorData.error || 'Errore durante la verifica');
+        try {
+          const errorData = await response.json();
+          setError(errorData.error || 'Errore durante la verifica');
+        } catch {
+          setError(`Errore HTTP ${response.status}: ${response.statusText}`);
+        }
         setUploadLoading(false);
         return;
       }
