@@ -49,8 +49,10 @@ export default function VerifyEtichettaPage() {
   const router = useRouter();
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    console.log('🎯 onDrop chiamato con file:', acceptedFiles);
     if (acceptedFiles.length === 0) return;
 
+    console.log('📤 Inizio upload e analisi...');
     setUploadLoading(true);
     setError(null);
     setVerificationResult(null);
@@ -92,11 +94,13 @@ export default function VerifyEtichettaPage() {
     const timeoutId = setTimeout(() => controller.abort(), 120000);
 
     try {
+      console.log('🚀 Invio richiesta POST a /api/etichette/verify...');
       const response = await fetch('/api/etichette/verify', {
         method: 'POST',
         body: formData,
         signal: controller.signal
       });
+      console.log('📨 Risposta ricevuta:', response.status, response.ok);
 
       clearTimeout(timeoutId);
       clearInterval(progressInterval);
