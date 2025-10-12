@@ -132,6 +132,66 @@ Rispondi in JSON con questo formato:
 }
 
 /**
+ * Confronta il testo OCR con i dati di un'etichetta ufficiale
+ */
+export async function compareTextWithOfficialLabel(
+  extractedText: string,
+  officialLabel: {
+    nome: string;
+    produttore?: string | null;
+    denominazione: string;
+    regioneProduzione: string;
+  }
+): Promise<{
+  matchScore: number;
+  differences: string[];
+  reasoning: string;
+}> {
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-5",
+      messages: [
+        {
+          role: "system",
+          content: `Sei un esperto di verifica etichette. Confronta il testo estratto con i dati dell'etichetta ufficiale e calcola una percentuale di match. Rispondi in JSON:
+{
+  "matchScore": number (0-100, percentuale di match testuale),
+  "differences": ["lista delle differenze testuali rilevate"],
+  "reasoning": "spiegazione del confronto"
+}`,
+        },
+        {
+          role: "user",
+          content: `Testo estratto dall'etichetta:
+${extractedText}
+
+Etichetta ufficiale di riferimento:
+- Nome: ${officialLabel.nome}
+- Produttore: ${officialLabel.produttore || 'N/A'}
+- Denominazione: ${officialLabel.denominazione}
+- Regione: ${officialLabel.regioneProduzione}
+
+Confronta nome prodotto, produttore, denominazione e regione. Calcola il match score.`,
+        },
+      ],
+      response_format: { type: "json_object" },
+      max_completion_tokens: 1000,
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || '{}');
+
+    return {
+      matchScore: Math.max(0, Math.min(100, result.matchScore || 0)),
+      differences: Array.isArray(result.differences) ? result.differences : [],
+      reasoning: result.reasoning || '',
+    };
+  } catch (error) {
+    console.error("Errore confronto testuale OpenAI:", error);
+    throw new Error("Failed to compare text with official label: " + (error instanceof Error ? error.message : 'Unknown error'));
+  }
+}
+
+/**
  * Confronta visivamente due etichette e determina la similarity
  */
 export async function compareLabelsVisually(

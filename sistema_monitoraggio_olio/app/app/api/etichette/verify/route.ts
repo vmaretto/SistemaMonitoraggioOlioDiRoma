@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { extractTextFromLabel, analyzeConformity, compareLabelsVisually } from '@/src/services/openai';
+import { extractTextFromLabel, analyzeConformity, compareLabelsVisually, compareTextWithOfficialLabel } from '@/src/services/openai';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,29 +47,40 @@ export async function POST(request: NextRequest) {
     let visualComparison: any = null;
 
     // Confronta con ogni etichetta ufficiale per trovare il miglior match
+    let textualComparison: any = null;
+    
     for (const etichetta of etichette) {
       if (!etichetta.imageUrl) continue;
 
       try {
-        // Scarica l'immagine di riferimento
+        // 1. Confronto testuale con GPT-5
+        const textComparison = await compareTextWithOfficialLabel(testoOcr, {
+          nome: etichetta.nome,
+          produttore: etichetta.produttore,
+          denominazione: etichetta.denominazione,
+          regioneProduzione: etichetta.regioneProduzione
+        });
+
+        // 2. Scarica l'immagine di riferimento
         const refImageResponse = await fetch(etichetta.imageUrl);
         if (!refImageResponse.ok) continue;
 
         const refBuffer = await refImageResponse.arrayBuffer();
         const refBase64 = Buffer.from(refBuffer).toString('base64');
 
-        // Confronto visivo con OpenAI Vision
-        const comparison = await compareLabelsVisually(base64String, refBase64);
+        // 3. Confronto visivo con OpenAI Vision
+        const visualComp = await compareLabelsVisually(base64String, refBase64);
 
-        // Calcola score combinato: 50% testuale + 50% visivo
-        const textualScore = conformity.percentualeMatch;
-        const visualScore = comparison.similarity;
+        // 4. Calcola score combinato: 50% testuale + 50% visivo
+        const textualScore = textComparison.matchScore;
+        const visualScore = visualComp.similarity;
         const combinedScore = (textualScore * 0.5) + (visualScore * 0.5);
 
         if (combinedScore > highestScore) {
           highestScore = combinedScore;
           bestMatch = etichetta;
-          visualComparison = comparison;
+          visualComparison = visualComp;
+          textualComparison = textComparison;
         }
       } catch (error) {
         console.error(`Errore confronto con etichetta ${etichetta.id}:`, error);
@@ -87,9 +98,10 @@ export async function POST(request: NextRequest) {
       risultatoFinale = 'non_conforme';
     }
 
-    // Combina violazioni testuali e visive
+    // Combina violazioni da conformità DOP/IGP, differenze testuali e differenze visive
     const violazioniCombinate = [
       ...conformity.violazioni,
+      ...(textualComparison?.differences || []),
       ...(visualComparison?.differences || [])
     ];
 
@@ -101,7 +113,7 @@ export async function POST(request: NextRequest) {
         risultatoMatching: risultatoFinale,
         percentualeMatch: Math.round(highestScore),
         violazioniRilevate: violazioniCombinate,
-        note: `Analisi testuale: ${conformity.note}\n\nAnalisi visiva: ${visualComparison?.explanation || 'Non disponibile'}`,
+        note: `Analisi conformità DOP/IGP: ${conformity.note}\n\nConfronto testuale: ${textualComparison?.reasoning || 'Non disponibile'}\n\nAnalisi visiva: ${visualComparison?.explanation || 'Non disponibile'}`,
         stato: 'verificata',
         ...(bestMatch && { etichettaUfficialeId: bestMatch.id })
       }
@@ -136,10 +148,24 @@ export async function POST(request: NextRequest) {
           produttore: bestMatch.produttore,
           denominazione: bestMatch.denominazione
         } : undefined,
-        analisiTestuale: {
-          risultato: conformity.risultato,
-          score: conformity.percentualeMatch,
-          violazioni: conformity.violazioni
+        analisiTestuale: textualComparison ? {
+          matchScore: textualComparison.matchScore,
+          differences: textualComparison.differences,
+          reasoning: textualComparison.reasoning,
+          conformitaDOP: {
+            risultato: conformity.risultato,
+            score: conformity.percentualeMatch,
+            violazioni: conformity.violazioni
+          }
+        } : {
+          matchScore: conformity.percentualeMatch,
+          differences: conformity.violazioni,
+          reasoning: conformity.note,
+          conformitaDOP: {
+            risultato: conformity.risultato,
+            score: conformity.percentualeMatch,
+            violazioni: conformity.violazioni
+          }
         },
         analisiVisiva: visualComparison ? {
           similarity: visualComparison.similarity,
