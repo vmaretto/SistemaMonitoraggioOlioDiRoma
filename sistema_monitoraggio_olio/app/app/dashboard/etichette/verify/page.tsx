@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -48,16 +48,6 @@ export default function VerifyEtichettaPage() {
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Cleanup on component unmount
-  useEffect(() => {
-    return () => {
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
 
   const handleFileUpload = useCallback(async (file: File) => {
     console.log('🎯 File selezionato:', file.name);
@@ -73,37 +63,18 @@ export default function VerifyEtichettaPage() {
     const formData = new FormData();
     formData.append('file', file);
 
-    // Messaggi di progresso ottimizzati (workflow parallelizzato)
-    const progressSteps = [
-      { percent: 10, message: '📸 Estrazione testo dall\'immagine con OCR...', delay: 500 },
-      { percent: 25, message: '📋 Analisi conformità DOP/IGP...', delay: 4000 },
-      { percent: 50, message: '⚡ Confronto testuale parallelo (12 etichette)...', delay: 8000 },
-      { percent: 75, message: '👁️ Confronto visivo con etichetta migliore...', delay: 15000 },
-      { percent: 90, message: '💾 Salvataggio verifica e creazione alert...', delay: 25000 }
-    ];
-
     const startTime = Date.now();
-    let currentStepIndex = 0;
 
-    // Aggiorna progresso e timer
-    progressIntervalRef.current = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      setElapsedTime(Math.floor(elapsed / 1000)); // Aggiorna secondi trascorsi
-      
-      if (currentStepIndex < progressSteps.length) {
-        const step = progressSteps[currentStepIndex];
-        if (elapsed >= step.delay) {
-          setProgressPercent(step.percent);
-          setProgressMessage(step.message);
-          console.log(`✓ ${step.message}`);
-          currentStepIndex++;
-        }
-      }
-    }, 200); // Controllo più frequente per timer fluido
+    // Mostra i 5 step progressivi con setTimeout semplici (no interval, più robusto)
+    setTimeout(() => { setProgressPercent(10); setProgressMessage('📸 Estrazione testo dall\'immagine con OCR...'); setElapsedTime(Math.floor((Date.now() - startTime) / 1000)); }, 500);
+    setTimeout(() => { setProgressPercent(25); setProgressMessage('📋 Analisi conformità DOP/IGP...'); setElapsedTime(Math.floor((Date.now() - startTime) / 1000)); }, 4000);
+    setTimeout(() => { setProgressPercent(50); setProgressMessage('⚡ Confronto testuale parallelo (12 etichette)...'); setElapsedTime(Math.floor((Date.now() - startTime) / 1000)); }, 8000);
+    setTimeout(() => { setProgressPercent(75); setProgressMessage('👁️ Confronto visivo con etichetta migliore...'); setElapsedTime(Math.floor((Date.now() - startTime) / 1000)); }, 15000);
+    setTimeout(() => { setProgressPercent(90); setProgressMessage('💾 Salvataggio verifica e creazione alert...'); setElapsedTime(Math.floor((Date.now() - startTime) / 1000)); }, 25000);
 
     // Timeout controller per 120 secondi
     const controller = new AbortController();
-    timeoutRef.current = setTimeout(() => controller.abort(), 120000);
+    const abortTimeout = setTimeout(() => controller.abort(), 120000);
 
     try {
       console.log('🚀 Invio richiesta POST a /api/etichette/verify...');
@@ -114,8 +85,7 @@ export default function VerifyEtichettaPage() {
       });
       console.log('📨 Risposta ricevuta:', response.status, response.ok);
 
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      clearTimeout(abortTimeout);
 
       if (response.ok) {
         const data = await response.json();
@@ -134,8 +104,7 @@ export default function VerifyEtichettaPage() {
         setUploadLoading(false);
       }
     } catch (error) {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      clearTimeout(abortTimeout);
       console.error('Errore upload etichetta:', error);
       if ((error as Error).name === 'AbortError') {
         setError('Timeout: l\'analisi sta richiedendo troppo tempo. Riprova con un\'immagine più piccola.');
