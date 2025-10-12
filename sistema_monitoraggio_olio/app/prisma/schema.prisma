@@ -95,7 +95,7 @@ model EtichetteUfficiali {
   id                String   @id @default(cuid())
   nome              String
   descrizione       String?
-  imageUrl          String
+  imageUrl          String   @db.Text
   cloudStoragePath  String?
   testoOcr          String?  @db.Text
   categoria         String   @default("ufficiale") // ufficiale, variante
@@ -110,7 +110,7 @@ model EtichetteUfficiali {
 
 model VerificheEtichette {
   id                  String             @id @default(cuid())
-  imageUrl            String
+  imageUrl            String             @db.Text
   cloudStoragePath    String?
   testoOcr            String?            @db.Text
   risultatoMatching   String             // conforme, non_conforme, sospetta

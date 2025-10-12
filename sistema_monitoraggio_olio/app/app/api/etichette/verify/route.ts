@@ -25,6 +25,10 @@ export async function POST(request: NextRequest) {
     // Converti immagine in base64
     const buffer = await file.arrayBuffer();
     const base64String = Buffer.from(buffer).toString('base64');
+    
+    // Crea data URL per salvare l'immagine
+    const mimeType = file.type || 'image/jpeg';
+    const dataUrl = `data:${mimeType};base64,${base64String}`;
 
     // 1. OCR con OpenAI Vision
     const testoOcr = await extractTextFromLabel(base64String);
@@ -89,10 +93,10 @@ export async function POST(request: NextRequest) {
       ...(visualComparison?.differences || [])
     ];
 
-    // Salva la verifica nel database
+    // Salva la verifica nel database con data URL dell'immagine caricata
     const verifica = await prisma.verificheEtichette.create({
       data: {
-        imageUrl: `upload_${Date.now()}.jpg`,
+        imageUrl: dataUrl,
         testoOcr,
         risultatoMatching: risultatoFinale,
         percentualeMatch: Math.round(highestScore),
