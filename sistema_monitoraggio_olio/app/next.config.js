@@ -22,6 +22,10 @@ const nextConfig = {
       },
     ]
   },
+  webpack: (config, { isServer }) => {
+    config.output.chunkLoadTimeout = 120000;
+    return config;
+  },
 };
 
 module.exports = nextConfig;

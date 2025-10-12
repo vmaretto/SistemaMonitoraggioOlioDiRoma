@@ -27,7 +27,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd sistema_monitoraggio_olio/app && npm run dev"
+args = "cd sistema_monitoraggio_olio/app && npm start"
 waitForPort = 5000
 
 [[ports]]
@@ -39,7 +39,7 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 44835
+localPort = 36237
 externalPort = 3000
 
 [deployment]
