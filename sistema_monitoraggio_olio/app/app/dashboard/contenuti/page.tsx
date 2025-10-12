@@ -29,6 +29,14 @@ interface ContenutoMonitorato {
   createdAt: string;
 }
 
+interface StoredSyncMetadata {
+  highlightedIds: string[];
+  syncAt?: string;
+  newCount?: number;
+}
+
+const LAST_SYNC_STORAGE_KEY = 'contenuti-monitorati:last-sync';
+
 interface IngestionApiResponse {
   success: boolean;
   message: string;
@@ -74,6 +82,30 @@ export default function ContenutiPage() {
     checkAiStatus();
   }, [currentPage, filterSentiment, filterFonte, filterKeyword, filterDataType, searchTerm]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    try {
+      const stored = window.localStorage.getItem(LAST_SYNC_STORAGE_KEY);
+      if (!stored) {
+        return;
+      }
+
+      const parsed: StoredSyncMetadata = JSON.parse(stored);
+      setHighlightedIds(parsed.highlightedIds || []);
+      if (parsed.syncAt) {
+        setLastSyncAt(parsed.syncAt);
+      }
+      if (typeof parsed.newCount === 'number') {
+        setLastSyncNewCount(parsed.newCount);
+      }
+    } catch (error) {
+      console.error('Errore lettura stato evidenziazione:', error);
+    }
+  }, []);
+
   const fetchContenuti = async (pageOverride?: number) => {
     try {
       setLoading(true);
@@ -90,7 +122,13 @@ export default function ContenutiPage() {
 
       const response = await fetch(`/api/contenuti?${params}`);
       const data = await response.json();
-      setContenuti(data.contenuti || []);
+      const contenutiOrdinati: ContenutoMonitorato[] = (data.contenuti || []).slice().sort((a, b) => {
+        const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return createdB - createdA;
+      });
+
+      setContenuti(contenutiOrdinati);
       setActiveKeywords(data.activeKeywords || []);
       setTotalPages(Math.ceil((data.total || 0) / itemsPerPage));
     } catch (error) {
@@ -137,9 +175,22 @@ export default function ContenutiPage() {
 
         await fetchContenuti(1);
         await fetchProviderStats();
+
+        const syncTimestamp = new Date().toISOString();
+        const computedNewCount = newItemsCount ?? (newItemIds.length > 0 ? newItemIds.length : 0);
+        const metadata: StoredSyncMetadata = {
+          highlightedIds: newItemIds,
+          syncAt: syncTimestamp,
+          newCount: computedNewCount,
+        };
+
         setHighlightedIds(newItemIds);
-        setLastSyncAt(new Date().toISOString());
-        setLastSyncNewCount(newItemsCount ?? (newItemIds.length > 0 ? newItemIds.length : 0));
+        setLastSyncAt(syncTimestamp);
+        setLastSyncNewCount(computedNewCount);
+
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(LAST_SYNC_STORAGE_KEY, JSON.stringify(metadata));
+        }
         alert(`✅ ${result.message}`);
       } else {
         alert(`❌ Errore: ${result.message || result.error}`);
