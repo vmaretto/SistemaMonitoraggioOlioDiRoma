@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -48,6 +48,16 @@ export default function VerifyEtichettaPage() {
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup on component unmount
+  useEffect(() => {
+    return () => {
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   const handleFileUpload = useCallback(async (file: File) => {
     console.log('🎯 File selezionato:', file.name);
@@ -76,7 +86,7 @@ export default function VerifyEtichettaPage() {
     let currentStepIndex = 0;
 
     // Aggiorna progresso e timer
-    const progressInterval = setInterval(() => {
+    progressIntervalRef.current = setInterval(() => {
       const elapsed = Date.now() - startTime;
       setElapsedTime(Math.floor(elapsed / 1000)); // Aggiorna secondi trascorsi
       
@@ -93,7 +103,7 @@ export default function VerifyEtichettaPage() {
 
     // Timeout controller per 120 secondi
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000);
+    timeoutRef.current = setTimeout(() => controller.abort(), 120000);
 
     try {
       console.log('🚀 Invio richiesta POST a /api/etichette/verify...');
@@ -104,8 +114,8 @@ export default function VerifyEtichettaPage() {
       });
       console.log('📨 Risposta ricevuta:', response.status, response.ok);
 
-      clearTimeout(timeoutId);
-      clearInterval(progressInterval);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
 
       if (response.ok) {
         const data = await response.json();
@@ -124,8 +134,8 @@ export default function VerifyEtichettaPage() {
         setUploadLoading(false);
       }
     } catch (error) {
-      clearTimeout(timeoutId);
-      clearInterval(progressInterval);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       console.error('Errore upload etichetta:', error);
       if ((error as Error).name === 'AbortError') {
         setError('Timeout: l\'analisi sta richiedendo troppo tempo. Riprova con un\'immagine più piccola.');
@@ -134,12 +144,6 @@ export default function VerifyEtichettaPage() {
       }
       setUploadLoading(false);
     }
-
-    // Cleanup function per smontaggio componente
-    return () => {
-      clearTimeout(timeoutId);
-      clearInterval(progressInterval);
-    };
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
