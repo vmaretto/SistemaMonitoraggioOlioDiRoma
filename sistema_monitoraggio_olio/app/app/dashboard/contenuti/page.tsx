@@ -122,7 +122,7 @@ export default function ContenutiPage() {
 
       const response = await fetch(`/api/contenuti?${params}`);
       const data = await response.json();
-      const contenutiOrdinati: ContenutoMonitorato[] = (data.contenuti || []).slice().sort((a, b) => {
+      const contenutiOrdinati: ContenutoMonitorato[] = (data.contenuti || []).slice().sort((a: ContenutoMonitorato, b: ContenutoMonitorato) => {
         const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return createdB - createdA;
