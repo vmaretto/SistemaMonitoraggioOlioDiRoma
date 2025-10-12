@@ -6,6 +6,15 @@ The application serves as a centralized hub for analyzing online content sentime
 
 ## Recent Changes
 
+- **October 12, 2025**: ✅ **COMPLETED Migration from AbacusAI to OpenAI GPT-5**
+  - Replaced all AbacusAI integrations with OpenAI GPT-5 and GPT-5 Vision
+  - Implemented dual-layer label verification: 50% textual matching + 50% visual similarity
+  - Added per-label textual comparison with `compareTextWithOfficialLabel()`
+  - Enhanced visual matching with `compareLabelsVisually()` using GPT-5 Vision
+  - Migrated sentiment analysis to OpenAI GPT-5 with structured JSON responses
+  - Updated database schema to support data URL storage (TEXT fields) for uploaded images
+  - Removed legacy AbacusAI code and deprecated functions
+
 - **December 28, 2025**: Completed full implementation of Inspector Activity Tracking ("Tracciabilità attività ispettori")
 - **Major Feature**: Complete workflow system for managing quality inspection reports from initial analysis through final closure
 - **Database Extension**: Extended Prisma schema with 6 new models (Report, ActionLog, Inspection, ClarificationRequest, AuthorityNotice, Attachment)
@@ -51,10 +60,21 @@ Preferred communication style: Simple, everyday language.
 ## Core Features Architecture
 
 ### Reputation Monitoring System
-- **Content Analysis**: AI-powered sentiment analysis using AbacusAI integration
+- **Content Analysis**: AI-powered sentiment analysis using OpenAI GPT-5
 - **Keyword Matching**: Automated relevance scoring and keyword detection
-- **Data Sources**: Awario API integration for social media and web monitoring
+- **Data Sources**: Webz.io and SerpApi integration for multi-provider data aggregation
 - **Real-time Sync**: Scheduled synchronization service for external data
+- **Provider Status**: Visual indicators for demo vs real data sources
+
+### Label Verification System ✅ COMPLETED
+- **Dual-Layer Verification**: 50% textual matching + 50% visual similarity scoring
+- **OCR Technology**: GPT-5 Vision for text extraction from uploaded labels
+- **Textual Matching**: Per-label comparison against official repository (nome, produttore, denominazione, regione)
+- **Visual Matching**: GPT-5 Vision comparison for detecting visual differences and counterfeits
+- **Scoring Algorithm**: Combined score = (textualMatchScore * 0.5) + (visualSimilarity * 0.5)
+- **Alert System**: Automatic alerts for non-compliant or suspicious labels
+- **Image Storage**: Data URL persistence in PostgreSQL TEXT fields
+- **Violation Detection**: DOP/IGP compliance, textual mismatches, and visual discrepancies
 
 ### Inspector Workflow System ✅ COMPLETED
 - **State Machine**: Comprehensive report lifecycle management with predefined transitions
@@ -74,8 +94,9 @@ Preferred communication style: Simple, everyday language.
 ## External Dependencies
 
 ### Third-party APIs
-- **AbacusAI**: AI-powered content analysis and sentiment scoring (requires ABACUSAI_API_KEY)
-- **Awario**: Social media and web monitoring service (requires AWARIO_API_KEY and AWARIO_BASE_URL)
+- **OpenAI**: GPT-5 for sentiment analysis, GPT-5 Vision for OCR and visual matching (requires OPENAI_API_KEY)
+- **Webz.io**: News and content monitoring service
+- **SerpApi**: Google News search integration
 
 ### Development Tools
 - **TypeScript**: Full type safety across frontend and backend
