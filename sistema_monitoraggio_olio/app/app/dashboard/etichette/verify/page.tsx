@@ -2,14 +2,13 @@
 
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CheckCircle, XCircle, AlertTriangle, Upload, Image as ImageIcon, Zap, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { useDropzone } from 'react-dropzone';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 
@@ -46,12 +45,12 @@ export default function VerifyEtichettaPage() {
   const [error, setError] = useState<string | null>(null);
   const [progressMessage, setProgressMessage] = useState<string>('');
   const [progressPercent, setProgressPercent] = useState<number>(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    console.log('🎯 onDrop chiamato con file:', acceptedFiles);
-    if (acceptedFiles.length === 0) return;
-
+  const handleFileUpload = useCallback(async (file: File) => {
+    console.log('🎯 File selezionato:', file.name);
+    
     console.log('📤 Inizio upload e analisi...');
     setUploadLoading(true);
     setError(null);
@@ -59,7 +58,6 @@ export default function VerifyEtichettaPage() {
     setProgressPercent(0);
     setProgressMessage('');
 
-    const file = acceptedFiles[0];
     const formData = new FormData();
     formData.append('file', file);
 
@@ -131,14 +129,18 @@ export default function VerifyEtichettaPage() {
     }
   }, []);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp']
-    },
-    maxFiles: 1,
-    maxSize: 10 * 1024 * 1024 // 10MB
-  });
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      // Verifica dimensione max 10MB
+      if (file.size > 10 * 1024 * 1024) {
+        setError('File troppo grande. Massimo 10MB');
+        return;
+      }
+      handleFileUpload(file);
+    }
+  };
 
   const getResultIcon = (risultato: string) => {
     switch (risultato) {
@@ -189,14 +191,8 @@ export default function VerifyEtichettaPage() {
   const nuovaVerifica = () => {
     setVerificationResult(null);
     setError(null);
-  };
-
-  // Fallback: handler per input file classico
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      console.log('📁 File selezionato tramite input:', files[0]);
-      onDrop([files[0]]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -237,45 +233,31 @@ export default function VerifyEtichettaPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div
-              {...getRootProps()}
-              className={`
-                border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors
-                ${isDragActive ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}
-              `}
-            >
-              <input {...getInputProps()} />
-              {isDragActive ? (
-                <div>
-                  <ImageIcon className="h-16 w-16 text-blue-500 mx-auto mb-4" />
-                  <p className="text-lg text-blue-600 font-medium">Rilascia l'immagine qui...</p>
-                  <p className="text-sm text-blue-500">L'analisi inizierà automaticamente</p>
-                </div>
-              ) : (
-                <div>
-                  <Upload className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <p className="text-xl font-medium text-gray-900 mb-2">Carica etichetta per la verifica</p>
-                  <p className="text-gray-600 mb-4">Trascina un'immagine qui o clicca per selezionare</p>
-                  <div className="text-sm text-gray-500">
-                    <p>Formati supportati: PNG, JPG, GIF, WebP</p>
-                    <p>Dimensione massima: 10MB</p>
-                  </div>
-                  
-                  <div className="mt-6">
-                    <label htmlFor="file-upload-fallback" className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 cursor-pointer transition-colors">
-                      <Upload className="h-4 w-4 mr-2" />
-                      Oppure clicca qui per selezionare
-                    </label>
-                    <input
-                      id="file-upload-fallback"
-                      type="file"
-                      accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                      onChange={handleFileInput}
-                      className="hidden"
-                    />
-                  </div>
-                </div>
-              )}
+            <div className="border-2 border-dashed rounded-lg p-12 text-center">
+              <Upload className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-xl font-medium text-gray-900 mb-2">Carica etichetta per la verifica</p>
+              <p className="text-gray-600 mb-4">Seleziona un'immagine dal tuo computer</p>
+              <div className="text-sm text-gray-500 mb-6">
+                <p>Formati supportati: PNG, JPG, GIF, WebP</p>
+                <p>Dimensione massima: 10MB</p>
+              </div>
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                onChange={handleFileChange}
+                className="hidden"
+                id="file-upload"
+              />
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                size="lg"
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Upload className="h-5 w-5 mr-2" />
+                Seleziona Immagine
+              </Button>
             </div>
 
             {error && (
