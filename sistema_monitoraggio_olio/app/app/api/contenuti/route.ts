@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
           }
         },
         orderBy: [
-          { dataPost: 'desc' },
+          { createdAt: 'desc' },
           { rilevanza: 'desc' }
         ],
         skip,
