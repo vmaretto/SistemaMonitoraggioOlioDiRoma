@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TrendingUp, TrendingDown, Minus, Search, Calendar, CalendarClock, ExternalLink, Image as ImageIcon, Shield } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Search, Calendar, CalendarClock, ExternalLink, Image as ImageIcon, Shield, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
