@@ -1,24 +1,29 @@
 import { NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { PrismaClient } from '@prisma/client';
 
-const execAsync = promisify(exec);
+const prisma = new PrismaClient();
 
 export async function GET() {
   try {
-    const { stdout, stderr } = await execAsync('cd /var/task/sistema_monitoraggio_olio/app && npx prisma db push --accept-data-loss --skip-generate');
+    // Test della connessione al database
+    await prisma.$connect();
+    
+    // Esegue un comando SQL semplice per verificare
+    const result = await prisma.$executeRaw`SELECT 1`;
+    
+    // Chiude la connessione
+    await prisma.$disconnect();
     
     return NextResponse.json({
       success: true,
-      message: 'Database migrated successfully',
-      stdout,
-      stderr
+      message: 'Database connection successful! Prisma is already configured.',
+      result,
+      info: 'Le tabelle vengono create automaticamente da Prisma durante il build di Vercel.'
     });
   } catch (error: any) {
     return NextResponse.json({
       success: false,
-      error: error.message,
-      stderr: error.stderr
+      error: error.message
     }, { status: 500 });
   }
 }
