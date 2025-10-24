@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 
-// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-// This is using OpenAI's API, which points to OpenAI's API servers and requires your own API key.
+// Using gpt-4-turbo for stability and compatibility
+// gpt-5 was causing empty responses in conformity and text comparison
 const openai = new OpenAI({ 
   apiKey: process.env.OPENAI_API_KEY,
   timeout: 30000, // 30 secondi timeout per chiamata
@@ -39,7 +39,7 @@ export async function analyzeSentiment(text: string): Promise<{
   try {
     const response = await withTimeout(
       openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-4-turbo",  // Cambiato da gpt-5 a gpt-4-turbo
         messages: [
           {
             role: "system",
@@ -88,7 +88,7 @@ export async function extractTextFromLabel(base64Image: string): Promise<string>
   try {
     const response = await withTimeout(
       openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-4-turbo",  // Cambiato da gpt-5
         messages: [
           {
             role: "user",
@@ -140,7 +140,7 @@ export async function analyzeConformity(testoOcr: string): Promise<{
   try {
     const response = await withTimeout(
       openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-4-turbo",  // Cambiato da gpt-5
         messages: [
           {
             role: "system",
@@ -230,7 +230,7 @@ export async function compareTextWithOfficialLabel(
   try {
     const response = await withTimeout(
       openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-4-turbo",  // Cambiato da gpt-5 per stabilità
         messages: [
           {
             role: "system",
@@ -338,7 +338,7 @@ export async function compareLabelsVisually(
   try {
     const response = await withTimeout(
       openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-4-turbo",  // Cambiato da gpt-5 per stabilità
         messages: [
           {
             role: "user",
