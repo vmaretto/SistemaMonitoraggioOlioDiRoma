@@ -13,7 +13,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 
 interface UploadEtichettaModalProps {
@@ -63,11 +62,18 @@ export default function UploadEtichettaModal({
   const handleFileChange = (file: File | null, type: 'fronte' | 'retro') => {
     if (!file) return;
 
+    console.log(`📷 File selezionato (${type}):`, {
+      name: file.name,
+      type: file.type,
+      size: file.size
+    });
+
     // Validazione
     const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
     const maxSize = 10 * 1024 * 1024; // 10MB
 
     if (!validTypes.includes(file.type)) {
+      console.error(`❌ Formato non valido (${type}):`, file.type);
       setErrors({ 
         ...errors, 
         [type === 'fronte' ? 'imageFronte' : 'imageRetro']: 'Formato non valido. Usa PNG, JPG, GIF o WEBP.' 
@@ -76,6 +82,7 @@ export default function UploadEtichettaModal({
     }
 
     if (file.size > maxSize) {
+      console.error(`❌ File troppo grande (${type}):`, file.size);
       setErrors({ 
         ...errors, 
         [type === 'fronte' ? 'imageFronte' : 'imageRetro']: 'File troppo grande (max 10MB).' 
@@ -103,6 +110,7 @@ export default function UploadEtichettaModal({
       } else {
         setPreviewRetro(reader.result as string);
       }
+      console.log(`✅ Preview creata (${type})`);
     };
     reader.readAsDataURL(file);
   };
@@ -140,6 +148,7 @@ export default function UploadEtichettaModal({
   };
 
   const validateForm = (): boolean => {
+    console.log('🔍 Validazione form...');
     const newErrors: Record<string, string> = {};
 
     if (!formData.nome.trim()) {
@@ -163,11 +172,16 @@ export default function UploadEtichettaModal({
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    
+    const isValid = Object.keys(newErrors).length === 0;
+    console.log(isValid ? '✅ Form valido' : '❌ Form non valido:', newErrors);
+    
+    return isValid;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('🚀 handleSubmit chiamato');
 
     if (!validateForm()) {
       toast.error('Compila tutti i campi obbligatori');
@@ -175,6 +189,7 @@ export default function UploadEtichettaModal({
     }
 
     setIsLoading(true);
+    console.log('📤 Preparazione invio dati...');
 
     try {
       const formDataToSend = new FormData();
@@ -189,27 +204,40 @@ export default function UploadEtichettaModal({
 
       if (formData.imageFronte) {
         formDataToSend.append('imageFronte', formData.imageFronte);
+        console.log('✅ Immagine fronte aggiunta al FormData');
       }
       if (formData.imageRetro) {
         formDataToSend.append('imageRetro', formData.imageRetro);
+        console.log('✅ Immagine retro aggiunta al FormData');
       }
 
+      console.log('📡 Invio richiesta POST a /api/etichette...');
+      
       const response = await fetch('/api/etichette', {
         method: 'POST',
         body: formDataToSend,
       });
 
+      console.log('📥 Risposta ricevuta:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
       const result = await response.json();
+      console.log('📦 Dati risposta:', result);
 
       if (!response.ok) {
         throw new Error(result.error || 'Errore durante il caricamento');
       }
 
+      console.log('✅ Upload completato con successo!');
       toast.success('Etichetta caricata con successo!');
       handleClose();
       onSuccess();
+      
     } catch (error) {
-      console.error('Errore upload:', error);
+      console.error('💥 Errore durante upload:', error);
       toast.error(error instanceof Error ? error.message : 'Errore durante il caricamento');
     } finally {
       setIsLoading(false);
@@ -217,6 +245,7 @@ export default function UploadEtichettaModal({
   };
 
   const handleClose = () => {
+    console.log('🔒 Chiusura modal');
     setFormData({
       nome: '',
       descrizione: '',
@@ -584,3 +613,7 @@ export default function UploadEtichettaModal({
     </div>
   );
 }
+
+
+
+
