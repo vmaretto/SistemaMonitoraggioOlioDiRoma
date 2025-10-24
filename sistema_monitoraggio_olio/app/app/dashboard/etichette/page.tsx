@@ -1,303 +1,389 @@
-
-
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { useRouter } from 'next/navigation';
+import { Search, Upload, ChevronLeft, Database, FileImage } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Image as ImageIcon, Search, ShieldCheck, Award, Package } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { format } from 'date-fns';
-import { it } from 'date-fns/locale';
-import Image from 'next/image';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { toast } from 'sonner';
+import UploadEtichettaModal from '@/components/dashboard/upload-etichetta-modal';
 
-interface EtichettaUfficiale {
+interface Etichetta {
   id: string;
   nome: string;
   descrizione?: string;
-  imageUrl: string;
-  testoOcr?: string;
-  categoria: string;
   denominazione: string;
+  categoria: string;
   produttore?: string;
+  comune?: string;
   regioneProduzione: string;
+  tipoEtichetta: string;
+  imageFronteUrl?: string;
+  imageRetroUrl?: string;
+  imageUrl?: string;
   isAttiva: boolean;
   createdAt: string;
+  _count?: {
+    verifiche: number;
+  };
 }
 
-export default function EtichettePage() {
-  const [etichette, setEtichette] = useState<EtichettaUfficiale[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterDenominazione, setFilterDenominazione] = useState('all');
-  const [filterCategoria, setFilterCategoria] = useState('all');
+export default function RepositoryEtichetteUfficialiPage() {
   const router = useRouter();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [etichette, setEtichette] = useState<Etichetta[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filtroCategoria, setFiltroCategoria] = useState('all');
+  const [filtroDenominazione, setFiltroDenominazione] = useState('all');
 
-  useEffect(() => {
-    fetchEtichette();
-  }, []);
-
+  // Carica etichette dal backend
   const fetchEtichette = async () => {
+    setIsLoading(true);
     try {
-      const response = await fetch('/api/etichette');
+      const params = new URLSearchParams();
+      if (filtroCategoria !== 'all') params.append('categoria', filtroCategoria);
+      if (filtroDenominazione !== 'all') params.append('denominazione', filtroDenominazione);
+      if (searchQuery) params.append('search', searchQuery);
+
+      const response = await fetch(`/api/etichette?${params.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error('Errore nel caricamento delle etichette');
+      }
+
       const data = await response.json();
       setEtichette(data.etichette || []);
     } catch (error) {
-      console.error('Errore caricamento etichette:', error);
+      console.error('Errore fetch etichette:', error);
+      toast.error('Impossibile caricare le etichette');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const getDenominazioneIcon = (denominazione: string) => {
-    switch (denominazione.toUpperCase()) {
-      case 'DOP': return <Award className="h-4 w-4 text-yellow-600" />;
-      case 'IGP': return <ShieldCheck className="h-4 w-4 text-blue-600" />;
-      case 'BIO': return <Package className="h-4 w-4 text-green-600" />;
-      default: return <Package className="h-4 w-4 text-gray-600" />;
-    }
+  useEffect(() => {
+    fetchEtichette();
+  }, [filtroCategoria, filtroDenominazione]);
+
+  // Effettua ricerca quando l'utente smette di digitare
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery !== undefined) {
+        fetchEtichette();
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleResetFiltri = () => {
+    setSearchQuery('');
+    setFiltroCategoria('all');
+    setFiltroDenominazione('all');
   };
 
-  const getDenominazioneColor = (denominazione: string) => {
-    switch (denominazione.toUpperCase()) {
-      case 'DOP': return 'bg-yellow-100 text-yellow-800';
-      case 'IGP': return 'bg-blue-100 text-blue-800';
-      case 'BIO': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  const handleUploadSuccess = () => {
+    fetchEtichette();
+    toast.success('Etichetta caricata con successo!');
   };
 
-  const filteredEtichette = etichette.filter(etichetta => {
-    const matchesSearch = etichetta.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         etichetta.descrizione?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         etichetta.produttore?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesDenominazione = filterDenominazione === 'all' || etichetta.denominazione === filterDenominazione;
-    const matchesCategoria = filterCategoria === 'all' || etichetta.categoria === filterCategoria;
+  // Conteggi per categoria
+  const conteggi = {
+    DOP: etichette.filter((e) => e.categoria === 'DOP').length,
+    IGP: etichette.filter((e) => e.categoria === 'IGP').length,
+    Biologici: etichette.filter((e) => e.categoria === 'Biologici').length,
+    Totali: etichette.length,
+  };
 
-    return matchesSearch && matchesDenominazione && matchesCategoria;
-  });
+  // Estrai denominazioni uniche per il filtro
+  const denominazioniUniche = Array.from(
+    new Set(etichette.map((e) => e.denominazione))
+  ).sort();
 
-  if (loading) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-64 mb-6"></div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[...Array(9)].map((_, i) => (
-              <div key={i} className="h-80 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const getCategoriaColor = (categoria: string) => {
+    switch (categoria) {
+      case 'DOP':
+        return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+      case 'IGP':
+        return 'bg-blue-100 text-blue-700 border-blue-300';
+      case 'Biologici':
+        return 'bg-green-100 text-green-700 border-green-300';
+      default:
+        return 'bg-gray-100 text-gray-700 border-gray-300';
+    }
+  };
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="flex-1 space-y-6 p-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Repository Etichette Ufficiali</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold text-gray-900">
+            Repository Etichette Ufficiali
+          </h1>
+          <p className="text-gray-600 mt-1">
             Archivio delle etichette certificate per il monitoraggio delle conformità
           </p>
         </div>
-        <div className="space-x-2">
-          <Button onClick={() => router.push('/dashboard/etichette/verify')} variant="outline">
-            Verifica Etichetta
+        <div className="flex items-center gap-3">
+          <Button onClick={() => setIsModalOpen(true)} className="gap-2">
+            <Upload size={18} />
+            Carica Nuova Etichetta
           </Button>
-          <Button onClick={() => router.push('/dashboard')} variant="outline">
-            ← Torna alla Dashboard
+          <Button
+            variant="outline"
+            onClick={() => router.push('/dashboard')}
+            className="gap-2"
+          >
+            <ChevronLeft size={18} />
+            Torna alla Dashboard
           </Button>
         </div>
       </div>
 
       {/* Filtri e Ricerca */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="text-lg">Filtri e Ricerca</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <Card>
+        <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cerca etichette..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+            {/* Search */}
+            <div className="md:col-span-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <Input
+                  type="text"
+                  placeholder="Cerca etichette per nome, produttore, comune..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
-            <Select value={filterDenominazione} onValueChange={setFilterDenominazione}>
-              <SelectTrigger>
-                <SelectValue placeholder="Denominazione" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tutte le denominazioni</SelectItem>
-                <SelectItem value="DOP">DOP</SelectItem>
-                <SelectItem value="IGP">IGP</SelectItem>
-                <SelectItem value="BIO">Biologico</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterCategoria} onValueChange={setFilterCategoria}>
-              <SelectTrigger>
-                <SelectValue placeholder="Categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tutte le categorie</SelectItem>
-                <SelectItem value="ufficiale">Ufficiali</SelectItem>
-                <SelectItem value="variante">Varianti</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button 
-              onClick={() => {
-                setSearchTerm('');
-                setFilterDenominazione('all');
-                setFilterCategoria('all');
-              }}
-              variant="outline"
-            >
-              Reset Filtri
-            </Button>
+
+            {/* Filtro Denominazione */}
+            <div>
+              <Select value={filtroDenominazione} onValueChange={setFiltroDenominazione}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Tutte le denominazioni" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutte le denominazioni</SelectItem>
+                  {denominazioniUniche.map((denom) => (
+                    <SelectItem key={denom} value={denom}>
+                      {denom}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Filtro Categoria + Reset */}
+            <div className="flex items-center gap-2">
+              <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Tutte le categorie" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutte le categorie</SelectItem>
+                  <SelectItem value="DOP">DOP</SelectItem>
+                  <SelectItem value="IGP">IGP</SelectItem>
+                  <SelectItem value="Biologici">Biologici</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant="ghost"
+                onClick={handleResetFiltri}
+                className="whitespace-nowrap"
+              >
+                Reset
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Statistiche */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <Award className="h-4 w-4 text-yellow-600" />
-              <div className="ml-2">
-                <p className="text-sm font-medium text-muted-foreground">DOP</p>
-                <p className="text-2xl font-bold">
-                  {etichette.filter(e => e.denominazione === 'DOP').length}
-                </p>
+      {/* Cards Conteggio */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="hover:shadow-md transition-shadow">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                <span className="text-2xl">🏷️</span>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">DOP</p>
+                <p className="text-3xl font-bold text-gray-900">{conteggi.DOP}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <ShieldCheck className="h-4 w-4 text-blue-600" />
-              <div className="ml-2">
-                <p className="text-sm font-medium text-muted-foreground">IGP</p>
-                <p className="text-2xl font-bold">
-                  {etichette.filter(e => e.denominazione === 'IGP').length}
-                </p>
+
+        <Card className="hover:shadow-md transition-shadow">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <span className="text-2xl">🛡️</span>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">IGP</p>
+                <p className="text-3xl font-bold text-gray-900">{conteggi.IGP}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <Package className="h-4 w-4 text-green-600" />
-              <div className="ml-2">
-                <p className="text-sm font-medium text-muted-foreground">Biologici</p>
-                <p className="text-2xl font-bold">
-                  {etichette.filter(e => e.denominazione === 'BIO').length}
-                </p>
+
+        <Card className="hover:shadow-md transition-shadow">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <span className="text-2xl">🌱</span>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Biologici</p>
+                <p className="text-3xl font-bold text-gray-900">{conteggi.Biologici}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <ImageIcon className="h-4 w-4 text-purple-600" />
-              <div className="ml-2">
-                <p className="text-sm font-medium text-muted-foreground">Totali</p>
-                <p className="text-2xl font-bold">{etichette.length}</p>
+
+        <Card className="hover:shadow-md transition-shadow">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <Database className="text-purple-600" size={24} />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Totali</p>
+                <p className="text-3xl font-bold text-gray-900">{conteggi.Totali}</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Griglia Etichette */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredEtichette.length === 0 ? (
-          <div className="col-span-full">
-            <Card>
-              <CardContent className="p-12 text-center">
-                <ImageIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold">Nessuna etichetta trovata</h3>
-                <p className="text-muted-foreground">Non ci sono etichette che corrispondono ai filtri selezionati.</p>
-              </CardContent>
-            </Card>
-          </div>
-        ) : (
-          filteredEtichette.map((etichetta) => (
-            <Card key={etichetta.id} className="overflow-hidden">
-              <div className="relative aspect-square bg-muted">
-                <Image
-                  src={etichetta.imageUrl}
-                  alt={etichetta.nome}
-                  fill
-                  className="object-contain p-2"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                  }}
-                />
+      {/* Lista Etichette */}
+      <Card>
+        <CardContent className="pt-6">
+          {isLoading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin mx-auto mb-4 h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+              <p className="text-gray-600">Caricamento etichette...</p>
+            </div>
+          ) : etichette.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                <FileImage className="text-gray-400" size={40} />
               </div>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <CardTitle className="text-lg line-clamp-2">{etichetta.nome}</CardTitle>
-                  <div className="flex items-center space-x-1">
-                    {getDenominazioneIcon(etichetta.denominazione)}
-                    <div className={`px-2 py-1 rounded text-xs font-semibold ${getDenominazioneColor(etichetta.denominazione)}`}>
-                      {etichetta.denominazione}
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Nessuna etichetta trovata
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Non ci sono etichette che corrispondono ai filtri selezionati.
+              </p>
+              <Button onClick={() => setIsModalOpen(true)} className="gap-2">
+                <Upload size={20} />
+                Carica la prima etichetta ufficiale
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {etichette.map((etichetta) => (
+                <Card
+                  key={etichetta.id}
+                  className="hover:shadow-lg transition-all cursor-pointer"
+                  onClick={() => {
+                    // TODO: Implementa visualizzazione dettaglio etichetta
+                    console.log('Dettaglio etichetta:', etichetta.id);
+                  }}
+                >
+                  <CardContent className="p-4">
+                    {/* Immagine */}
+                    <div className="aspect-video bg-gray-100 rounded-lg mb-3 overflow-hidden">
+                      {(etichetta.imageFronteUrl || etichetta.imageUrl) ? (
+                        <img
+                          src={etichetta.imageFronteUrl || etichetta.imageUrl}
+                          alt={etichetta.nome}
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <FileImage className="text-gray-400" size={40} />
+                        </div>
+                      )}
                     </div>
-                  </div>
-                </div>
-                <CardDescription className="line-clamp-2">
-                  {etichetta.descrizione}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {etichetta.produttore && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Produttore:</span>
-                      <span className="font-medium">{etichetta.produttore}</span>
+
+                    {/* Info */}
+                    <div className="space-y-2">
+                      {/* Badge categoria e stato */}
+                      <div className="flex items-center justify-between">
+                        <Badge className={getCategoriaColor(etichetta.categoria)}>
+                          {etichetta.categoria}
+                        </Badge>
+                        {etichetta.isAttiva ? (
+                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                            ✓ Attiva
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-gray-50 text-gray-500">
+                            Inattiva
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* Nome */}
+                      <h4 className="font-semibold text-gray-900 line-clamp-2">
+                        {etichetta.nome}
+                      </h4>
+
+                      {/* Denominazione */}
+                      <p className="text-sm text-blue-600 font-medium">
+                        {etichetta.denominazione}
+                      </p>
+
+                      {/* Produttore */}
+                      {etichetta.produttore && (
+                        <p className="text-sm text-gray-600 line-clamp-1">
+                          {etichetta.produttore}
+                        </p>
+                      )}
+
+                      {/* Location */}
+                      {(etichetta.comune || etichetta.regioneProduzione) && (
+                        <p className="text-xs text-gray-500">
+                          📍 {[etichetta.comune, etichetta.regioneProduzione].filter(Boolean).join(', ')}
+                        </p>
+                      )}
+
+                      {/* Verifiche count */}
+                      {etichetta._count && etichetta._count.verifiche > 0 && (
+                        <p className="text-xs text-purple-600 font-medium">
+                          {etichetta._count.verifiche} verific{etichetta._count.verifiche === 1 ? 'a' : 'he'}
+                        </p>
+                      )}
                     </div>
-                  )}
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Regione:</span>
-                    <span className="font-medium">{etichetta.regioneProduzione}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Categoria:</span>
-                    <Badge variant="outline" className="text-xs">
-                      {etichetta.categoria}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Aggiunta il:</span>
-                    <span className="text-xs">
-                      {format(new Date(etichetta.createdAt), 'PP', { locale: it })}
-                    </span>
-                  </div>
-                  {etichetta.testoOcr && (
-                    <div className="mt-3 p-2 bg-gray-50 rounded text-xs">
-                      <p className="font-medium text-muted-foreground mb-1">Testo riconosciuto:</p>
-                      <p className="line-clamp-3">{etichetta.testoOcr}</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Modal Upload */}
+      <UploadEtichettaModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={handleUploadSuccess}
+      />
     </div>
   );
 }
