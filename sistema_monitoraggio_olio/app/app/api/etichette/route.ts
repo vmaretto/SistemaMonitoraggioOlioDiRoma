@@ -22,21 +22,17 @@ export async function GET(request: NextRequest) {
 
     const where: any = {};
     
-    // Filtro categoria (DOP, IGP, Biologici)
     if (categoria && categoria !== 'all' && categoria !== 'Tutte le categorie') {
       where.categoria = categoria;
     }
     
-    // Filtro denominazione
     if (denominazione && denominazione !== 'all' && denominazione !== 'Tutte le denominazioni') {
       where.denominazione = denominazione;
     }
     
-    // Filtro attiva/inattiva
     if (isAttiva === 'true') where.isAttiva = true;
     if (isAttiva === 'false') where.isAttiva = false;
     
-    // Ricerca testuale
     if (search) {
       where.OR = [
         { nome: { contains: search, mode: 'insensitive' } },
@@ -71,23 +67,35 @@ export async function GET(request: NextRequest) {
 
 // POST - Carica nuova etichetta ufficiale
 export async function POST(request: NextRequest) {
+  console.log('🚀 POST /api/etichette chiamato');
+  
   try {
+    // Step 1: Verifica sessione
+    console.log('🔐 Step 1: Verifica sessione...');
     const session = await getServerSession(authOptions);
     
     if (!session) {
+      console.error('❌ Sessione non trovata');
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
+    console.log('✅ Sessione trovata:', session.user?.email);
 
-    // Verifica ruolo (solo admin e direttore possono caricare etichette ufficiali)
+    // Step 2: Verifica ruolo
+    console.log('👤 Step 2: Verifica ruolo...');
+    console.log('Ruolo utente:', session.user.role);
+    
     if (session.user.role !== 'direttore' && session.user.role !== 'admin') {
+      console.error('❌ Ruolo non autorizzato:', session.user.role);
       return NextResponse.json({ 
-        error: 'Non hai i permessi per caricare etichette ufficiali' 
+        error: 'Non hai i permessi per caricare etichette ufficiali. Serve ruolo direttore o admin.' 
       }, { status: 403 });
     }
+    console.log('✅ Ruolo autorizzato');
 
+    // Step 3: Parse FormData
+    console.log('📦 Step 3: Parse FormData...');
     const formData = await request.formData();
     
-    // Estrai i campi dal form
     const nome = formData.get('nome') as string;
     const descrizione = formData.get('descrizione') as string | null;
     const denominazione = formData.get('denominazione') as string;
@@ -99,82 +107,105 @@ export async function POST(request: NextRequest) {
     const imageFronte = formData.get('imageFronte') as File | null;
     const imageRetro = formData.get('imageRetro') as File | null;
 
-    // Validazione campi obbligatori
+    console.log('📝 Dati ricevuti:', {
+      nome,
+      denominazione,
+      categoria,
+      produttore,
+      comune,
+      regioneProduzione,
+      tipoEtichetta,
+      haImageFronte: !!imageFronte,
+      haImageRetro: !!imageRetro
+    });
+
+    // Step 4: Validazione campi obbligatori
+    console.log('✔️ Step 4: Validazione campi...');
     if (!nome || !denominazione || !categoria || !regioneProduzione) {
+      console.error('❌ Campi obbligatori mancanti');
       return NextResponse.json({
         error: 'Campi obbligatori mancanti',
-        required: ['nome', 'denominazione', 'categoria', 'regioneProduzione']
+        required: ['nome', 'denominazione', 'categoria', 'regioneProduzione'],
+        received: { nome, denominazione, categoria, regioneProduzione }
       }, { status: 400 });
     }
 
     // Validazione categoria
     const categorieValide = ['DOP', 'IGP', 'Biologici', 'ufficiale'];
     if (!categorieValide.includes(categoria)) {
+      console.error('❌ Categoria non valida:', categoria);
       return NextResponse.json({
         error: 'Categoria non valida',
         validCategories: categorieValide
       }, { status: 400 });
     }
 
-    // Validazione tipo etichetta
-    const tipiValidi = ['etichetta', 'contenitore'];
-    if (tipoEtichetta && !tipiValidi.includes(tipoEtichetta)) {
-      return NextResponse.json({
-        error: 'Tipo etichetta non valido',
-        validTypes: tipiValidi
-      }, { status: 400 });
-    }
-
-    // Validazione file immagini
+    // Validazione immagine fronte obbligatoria
     if (!imageFronte) {
+      console.error('❌ Immagine fronte mancante');
       return NextResponse.json({
         error: 'Immagine fronte obbligatoria'
       }, { status: 400 });
     }
+    console.log('✅ Validazione completata');
 
-    // Validazione dimensione file (max 10MB per file)
+    // Step 5: Validazione file
+    console.log('🖼️ Step 5: Validazione file...');
     const maxSize = 10 * 1024 * 1024; // 10MB
-    if (imageFronte && imageFronte.size > maxSize) {
+    const tipiAccettati = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+
+    if (imageFronte.size > maxSize) {
+      console.error('❌ Immagine fronte troppo grande:', imageFronte.size);
       return NextResponse.json({
         error: 'Immagine fronte troppo grande (max 10MB)'
       }, { status: 400 });
     }
+
+    if (!tipiAccettati.includes(imageFronte.type)) {
+      console.error('❌ Formato immagine fronte non valido:', imageFronte.type);
+      return NextResponse.json({
+        error: 'Formato immagine fronte non valido (usa JPG, PNG, GIF, WEBP)'
+      }, { status: 400 });
+    }
+
     if (imageRetro && imageRetro.size > maxSize) {
+      console.error('❌ Immagine retro troppo grande:', imageRetro.size);
       return NextResponse.json({
         error: 'Immagine retro troppo grande (max 10MB)'
       }, { status: 400 });
     }
 
-    // Validazione tipo MIME
-    const tipiAccettati = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-    if (imageFronte && !tipiAccettati.includes(imageFronte.type)) {
-      return NextResponse.json({
-        error: 'Formato immagine fronte non valido (usa JPG, PNG, GIF, WEBP)'
-      }, { status: 400 });
-    }
     if (imageRetro && !tipiAccettati.includes(imageRetro.type)) {
+      console.error('❌ Formato immagine retro non valido:', imageRetro.type);
       return NextResponse.json({
         error: 'Formato immagine retro non valido (usa JPG, PNG, GIF, WEBP)'
       }, { status: 400 });
     }
+    console.log('✅ File validati');
 
-    // Converti immagini in base64 Data URLs
+    // Step 6: Conversione immagini in base64
+    console.log('🔄 Step 6: Conversione immagini...');
     let imageFronteUrl: string | null = null;
     let imageRetroUrl: string | null = null;
 
     if (imageFronte) {
+      console.log('Converting fronte...');
       const bufferFronte = await imageFronte.arrayBuffer();
       const base64Fronte = Buffer.from(bufferFronte).toString('base64');
       imageFronteUrl = `data:${imageFronte.type};base64,${base64Fronte}`;
+      console.log('✅ Fronte convertita (length:', imageFronteUrl.length, ')');
     }
 
     if (imageRetro) {
+      console.log('Converting retro...');
       const bufferRetro = await imageRetro.arrayBuffer();
       const base64Retro = Buffer.from(bufferRetro).toString('base64');
       imageRetroUrl = `data:${imageRetro.type};base64,${base64Retro}`;
+      console.log('✅ Retro convertita (length:', imageRetroUrl.length, ')');
     }
 
-    // Crea l'etichetta nel database
+    // Step 7: Salvataggio nel database
+    console.log('💾 Step 7: Salvataggio database...');
     const nuovaEtichetta = await prisma.etichetteUfficiali.create({
       data: {
         nome,
@@ -187,10 +218,12 @@ export async function POST(request: NextRequest) {
         tipoEtichetta: tipoEtichetta || 'etichetta',
         imageFronteUrl,
         imageRetroUrl,
-        imageUrl: imageFronteUrl, // Mantieni compatibilità con campo deprecato
+        imageUrl: imageFronteUrl, // Compatibilità
         isAttiva: true
       }
     });
+
+    console.log('✅ Etichetta salvata con ID:', nuovaEtichetta.id);
 
     return NextResponse.json({
       success: true,
@@ -199,7 +232,8 @@ export async function POST(request: NextRequest) {
     }, { status: 201 });
 
   } catch (error) {
-    console.error('Errore nel caricamento etichetta:', error);
+    console.error('💥 ERRORE nel caricamento etichetta:', error);
+    console.error('Stack trace:', error instanceof Error ? error.stack : 'N/A');
     return NextResponse.json({ 
       error: 'Errore durante il caricamento dell\'etichetta',
       details: error instanceof Error ? error.message : 'Errore sconosciuto'
