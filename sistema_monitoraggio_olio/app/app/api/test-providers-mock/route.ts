@@ -17,11 +17,11 @@ export async function GET(request: NextRequest) {
     // Test SerpAPI Google News
     try {
       const googleNews = registry.getProvider('serpapi_google_news');
-      const searchResults = await googleNews.search('olio DOP Roma', { limit: 5 });
+      const response = await googleNews.search({ q: 'olio DOP Roma', size: 5 });
       results.providers.serpapi_google_news = {
         status: 'success',
-        resultsCount: searchResults.length,
-        sampleTitle: searchResults[0]?.title || 'N/A',
+        resultsCount: response.results.length,
+        sampleTitle: response.results[0]?.title || 'N/A',
       };
     } catch (error: any) {
       results.providers.serpapi_google_news = {
@@ -33,11 +33,11 @@ export async function GET(request: NextRequest) {
     // Test SerpAPI Reddit
     try {
       const reddit = registry.getProvider('serpapi_reddit');
-      const searchResults = await reddit.search('olive oil DOP', { limit: 5 });
+      const response = await reddit.search({ q: 'olive oil DOP', size: 5 });
       results.providers.serpapi_reddit = {
         status: 'success',
-        resultsCount: searchResults.length,
-        sampleTitle: searchResults[0]?.title || 'N/A',
+        resultsCount: response.results.length,
+        sampleTitle: response.results[0]?.title || 'N/A',
       };
     } catch (error: any) {
       results.providers.serpapi_reddit = {
@@ -49,11 +49,11 @@ export async function GET(request: NextRequest) {
     // Test Webz.io
     try {
       const webzio = registry.getProvider('webzio');
-      const searchResults = await webzio.search('olio extravergine', { limit: 5 });
+      const response = await webzio.search({ q: 'olio extravergine', size: 5 });
       results.providers.webzio = {
         status: 'success',
-        resultsCount: searchResults.length,
-        sampleTitle: searchResults[0]?.title || 'N/A',
+        resultsCount: response.results.length,
+        sampleTitle: response.results[0]?.title || 'N/A',
       };
     } catch (error: any) {
       results.providers.webzio = {
