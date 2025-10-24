@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import UploadEtichettaModal from '@/components/dashboard/upload-etichetta-modal';
+import DetailEtichettaModal from '@/components/dashboard/detail-etichetta-modal';
 
 interface Etichetta {
   id: string;
@@ -39,7 +40,9 @@ interface Etichetta {
 
 export default function RepositoryEtichetteUfficialiPage() {
   const router = useRouter();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedEtichetta, setSelectedEtichetta] = useState<Etichetta | null>(null);
   const [etichette, setEtichette] = useState<Etichetta[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -97,6 +100,18 @@ export default function RepositoryEtichetteUfficialiPage() {
     toast.success('Etichetta caricata con successo!');
   };
 
+  const handleDetailSuccess = () => {
+    fetchEtichette();
+    setIsDetailModalOpen(false);
+    setSelectedEtichetta(null);
+  };
+
+  const handleEtichettaClick = (etichetta: Etichetta) => {
+    console.log('Click su etichetta:', etichetta.id);
+    setSelectedEtichetta(etichetta);
+    setIsDetailModalOpen(true);
+  };
+
   // Conteggi per categoria
   const conteggi = {
     DOP: etichette.filter((e) => e.categoria === 'DOP').length,
@@ -136,7 +151,7 @@ export default function RepositoryEtichetteUfficialiPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button onClick={() => setIsModalOpen(true)} className="gap-2">
+          <Button onClick={() => setIsUploadModalOpen(true)} className="gap-2">
             <Upload size={18} />
             Carica Nuova Etichetta
           </Button>
@@ -289,7 +304,7 @@ export default function RepositoryEtichetteUfficialiPage() {
               <p className="text-gray-600 mb-6">
                 Non ci sono etichette che corrispondono ai filtri selezionati.
               </p>
-              <Button onClick={() => setIsModalOpen(true)} className="gap-2">
+              <Button onClick={() => setIsUploadModalOpen(true)} className="gap-2">
                 <Upload size={20} />
                 Carica la prima etichetta ufficiale
               </Button>
@@ -300,10 +315,7 @@ export default function RepositoryEtichetteUfficialiPage() {
                 <Card
                   key={etichetta.id}
                   className="hover:shadow-lg transition-all cursor-pointer"
-                  onClick={() => {
-                    // TODO: Implementa visualizzazione dettaglio etichetta
-                    console.log('Dettaglio etichetta:', etichetta.id);
-                  }}
+                  onClick={() => handleEtichettaClick(etichetta)}
                 >
                   <CardContent className="p-4">
                     {/* Immagine */}
@@ -380,9 +392,20 @@ export default function RepositoryEtichetteUfficialiPage() {
 
       {/* Modal Upload */}
       <UploadEtichettaModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
         onSuccess={handleUploadSuccess}
+      />
+
+      {/* Modal Dettaglio/Modifica */}
+      <DetailEtichettaModal
+        isOpen={isDetailModalOpen}
+        onClose={() => {
+          setIsDetailModalOpen(false);
+          setSelectedEtichetta(null);
+        }}
+        etichetta={selectedEtichetta}
+        onSuccess={handleDetailSuccess}
       />
     </div>
   );
