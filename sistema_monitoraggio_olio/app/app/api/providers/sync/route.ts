@@ -2,11 +2,55 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { searchWithSerpAPI } from '@/lib/serpapi';
 import { processContentForMonitoring, analyzeSentiment } from '@/lib/keyword-matching';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60; // Timeout 60 secondi per Vercel
+export const maxDuration = 60;
+
+/**
+ * Fetch da SerpAPI
+ */
+async function fetchFromSerpAPI(keyword: string) {
+  const apiKey = process.env.SERPAPI_KEY;
+  
+  if (!apiKey) {
+    console.warn('⚠️ SERPAPI_KEY non configurata');
+    return [];
+  }
+
+  try {
+    const params = new URLSearchParams({
+      engine: 'google',
+      q: keyword,
+      tbm: 'nws',
+      api_key: apiKey,
+      num: '10',
+      hl: 'it',
+      gl: 'it'
+    });
+
+    const response = await fetch(`https://serpapi.com/search?${params}`);
+    
+    if (!response.ok) {
+      throw new Error(`SerpAPI error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const newsResults = data.news_results || [];
+
+    return newsResults.map((item: any) => ({
+      title: item.title || '',
+      snippet: item.snippet || item.title || '',
+      url: item.link || '',
+      source: item.source || 'Google News',
+      date: item.date || new Date().toISOString()
+    }));
+
+  } catch (error) {
+    console.error('❌ Errore SerpAPI:', error);
+    return [];
+  }
+}
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -18,7 +62,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
 
-    // 1. Recupera keywords attive
     const activeKeywords = await prisma.keywords.findMany({
       where: { isActive: true },
       select: { keyword: true }
@@ -38,19 +81,17 @@ export async function POST(request: NextRequest) {
     const providersUsed: string[] = [];
     const errors: string[] = [];
 
-    // 2. Per ogni keyword, cerca con SerpAPI
     for (const keyword of keywordList) {
       try {
-        // Cerca su Google News
-        const newsResults = await searchWithSerpAPI(keyword, 'google_news');
+        const newsResults = await fetchFromSerpAPI(keyword);
         
         if (newsResults && newsResults.length > 0) {
-          providersUsed.push('SerpAPI (Google News)');
+          if (!providersUsed.includes('SerpAPI (Google News)')) {
+            providersUsed.push('SerpAPI (Google News)');
+          }
           
-          // Salva i risultati
           for (const result of newsResults) {
             try {
-              // Verifica se esiste già (per evitare duplicati)
               const existing = await prisma.contenutiMonitorati.findFirst({
                 where: {
                   url: result.url,
@@ -59,22 +100,20 @@ export async function POST(request: NextRequest) {
               });
 
               if (existing) {
-                continue; // Salta se esiste già
+                continue;
               }
 
-              // Analizza rilevanza e sentiment
               const contentAnalysis = processContentForMonitoring(
                 result.snippet || result.title,
                 keywordList
               );
 
               if (!contentAnalysis.shouldMonitor) {
-                continue; // Salta se non rilevante
+                continue;
               }
 
               const sentimentResult = await analyzeSentiment(result.snippet || result.title);
 
-              // Crea nuovo contenuto
               await prisma.contenutiMonitorati.create({
                 data: {
                   fonte: result.source || 'Google News',
@@ -86,12 +125,12 @@ export async function POST(request: NextRequest) {
                   keywords: contentAnalysis.keywords,
                   dataPost: result.date ? new Date(result.date) : new Date(),
                   rilevanza: contentAnalysis.relevance,
-                  metadata: {
+                  metadata: sentimentResult.base && sentimentResult.ai ? {
                     sentimentAnalysis: {
                       base: sentimentResult.base,
                       ai: sentimentResult.ai
                     }
-                  }
+                  } : undefined
                 }
               });
 
