@@ -52,6 +52,27 @@ async function fetchFromSerpAPI(keyword: string) {
   }
 }
 
+/**
+ * Parse date in modo sicuro
+ */
+function parseDate(dateString: string | undefined): Date {
+  if (!dateString) {
+    return new Date();
+  }
+
+  // Prova a parsare la data
+  const parsed = new Date(dateString);
+  
+  // Se la data è valida, usala
+  if (!isNaN(parsed.getTime())) {
+    return parsed;
+  }
+
+  // Altrimenti usa data corrente
+  console.warn(`⚠️ Data invalida: "${dateString}", uso data corrente`);
+  return new Date();
+}
+
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
   
@@ -123,7 +144,7 @@ export async function POST(request: NextRequest) {
                   sentiment: sentimentResult.sentiment,
                   sentimentScore: sentimentResult.score,
                   keywords: contentAnalysis.keywords,
-                  dataPost: result.date ? new Date(result.date) : new Date(),
+                  dataPost: parseDate(result.date),
                   rilevanza: contentAnalysis.relevance,
                   metadata: sentimentResult.base && sentimentResult.ai ? {
                     sentimentAnalysis: {
