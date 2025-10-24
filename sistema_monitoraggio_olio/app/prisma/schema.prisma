@@ -98,13 +98,25 @@ model EtichetteUfficiali {
   id                String   @id @default(cuid())
   nome              String
   descrizione       String?
-  imageUrl          String   @db.Text
+  
+  // ✅ GESTIONE IMMAGINI (fronte/retro + retrocompatibilità)
+  imageFronteUrl    String?  @db.Text  // Nuova: immagine fronte
+  imageRetroUrl     String?  @db.Text  // Nuova: immagine retro
+  imageUrl          String?  @db.Text  // Deprecata ma mantenuta per compatibilità
   cloudStoragePath  String?
+  
   testoOcr          String?  @db.Text
-  categoria         String   @default("ufficiale") // ufficiale, variante
-  denominazione     String   // DOP, IGP, etc
+  categoria         String   @default("ufficiale")
+  denominazione     String
   produttore        String?
+  
+  // ✅ LOCATION DETTAGLIATA
+  comune            String?              // Nuovo: comune di produzione
   regioneProduzione String   @default("Lazio")
+  
+  // ✅ TIPO ETICHETTA
+  tipoEtichetta     String   @default("etichetta") // "etichetta" | "contenitore"
+  
   isAttiva          Boolean  @default(true)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
