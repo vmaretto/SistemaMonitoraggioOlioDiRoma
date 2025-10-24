@@ -106,21 +106,27 @@ export async function GET(request: NextRequest) {
 
     const totalPages = Math.ceil(totalCount / limit);
 
-    const totalPages = Math.ceil(totalCount / limit);
+    // ✅ CALCOLA STATISTICHE SENTIMENT CON GROUPBY (PERFORMANTE)
+    const sentimentCounts = await prisma.contenutiMonitorati.groupBy({
+      by: ['sentiment'],
+      where,
+      _count: {
+        sentiment: true
+      }
+    });
 
-// Calcola statistiche sentiment (fix: DB usa "neutrale" non "neutro")
-const stats = {
-  totale: totalCount,
-  positivi: contenuti.filter(c => c.sentiment === 'positivo').length,
-  neutri: contenuti.filter(c => c.sentiment === 'neutrale').length,  // ✅ CORRETTO
-  negativi: contenuti.filter(c => c.sentiment === 'negativo').length
-};
+    const stats = {
+      totale: totalCount,
+      positivi: sentimentCounts.find(s => s.sentiment === 'positivo')?._count.sentiment || 0,
+      neutri: sentimentCounts.find(s => s.sentiment === 'neutrale')?._count.sentiment || 0,
+      negativi: sentimentCounts.find(s => s.sentiment === 'negativo')?._count.sentiment || 0
+    };
 
-return NextResponse.json({
-  contenuti,
-  activeKeywords: activeKeywords.map(k => k.keyword),
-  stats,  // ✅ Aggiungi le statistiche
-  total: totalCount,
+    return NextResponse.json({
+      contenuti,
+      activeKeywords: activeKeywords.map(k => k.keyword),
+      stats,  // ✅ AGGIUNGI QUESTO
+      total: totalCount,
       pagination: {
         page,
         limit,
