@@ -184,16 +184,40 @@ model Report {
   description     String        @db.Text
   createdAt       DateTime      @default(now())
   createdById     String
-  status          ReportStatus  @default(ANALISI)
+  status          ReportStatus  @default(BOZZA)
+
+  // Campi aggiuntivi per il workflow migliorato
+  priorita        ReportPriority @default(MEDIA)
+  tipo            ReportType    @default(INFORMATIVO)
+  dataUltimaModifica DateTime   @updatedAt
+  dataChiusura    DateTime?
+  scadenza        DateTime?
+  motivoChiusura  String?       @db.Text
+
+  // Relazioni esistenti
   inspections     Inspection[]
   clarifications  ClarificationRequest[]
   authorityNotices AuthorityNotice[]
   actions         ActionLog[]
   attachments     Attachment[]
+
+  // Nuove relazioni per workflow migliorato
+  stateChanges    ReportStateChange[]
+  feedbacks       ReportFeedback[]
+
   updatedAt       DateTime      @updatedAt
 }
 
 enum ReportStatus {
+  BOZZA
+  IN_LAVORAZIONE
+  IN_VERIFICA
+  RICHIESTA_CHIARIMENTI
+  SEGNALATO_AUTORITA
+  CHIUSO
+  ARCHIVIATO
+
+  // Stati legacy mantenuti per compatibilità
   ANALISI
   ARCHIVIATA
   IN_CONTROLLO
@@ -202,6 +226,22 @@ enum ReportStatus {
   SEGNALATA_A_ENTE
   IN_ATTESA_FEEDBACK_ENTE
   CHIUSA
+}
+
+enum ReportPriority {
+  BASSA
+  MEDIA
+  ALTA
+  CRITICA
+}
+
+enum ReportType {
+  INFORMATIVO
+  VIOLAZIONE_MINORE
+  VIOLAZIONE_GRAVE
+  FRODE_SOSPETTA
+  RICHIESTA_VERIFICA
+  ALTRO
 }
 
 model ActionLog {
@@ -226,6 +266,42 @@ model Inspection {
   createdAt   DateTime @default(now())
   report      Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
   updatedAt   DateTime @updatedAt
+
+  // Campi aggiuntivi per workflow migliorato
+  tipo                InspectionType     @default(DOCUMENTALE)
+  stato               InspectionStatus   @default(PIANIFICATA)
+  ispettore           String?
+  esito               InspectionOutcome?
+  risultati           String?            @db.Text
+  noteInterne         String?            @db.Text
+  raccomandazioni     String?            @db.Text
+  richiedeFollowUp    Boolean            @default(false)
+  dataFollowUp        DateTime?
+
+  attachments         Attachment[]
+}
+
+enum InspectionType {
+  DOCUMENTALE
+  VISITA_LUOGO
+  CAMPIONAMENTO
+  VERIFICA_ETICHETTA
+  AUDIT_COMPLETO
+}
+
+enum InspectionStatus {
+  PIANIFICATA
+  IN_CORSO
+  COMPLETATA
+  ANNULLATA
+}
+
+enum InspectionOutcome {
+  CONFORME
+  NON_CONFORME_MINORE
+  NON_CONFORME_GRAVE
+  NECESSITA_APPROFONDIMENTO
+  NON_APPLICABILE
 }
 
 model ClarificationRequest {
@@ -240,6 +316,39 @@ model ClarificationRequest {
   outcome     String?  // CHIUSA o SEGNALATA_A_ENTE
   report      Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
   updatedAt   DateTime @updatedAt
+
+  // Campi aggiuntivi per workflow migliorato
+  destinatario        ClarificationRecipient @default(PRODUTTORE)
+  emailDestinatario   String?
+  oggetto             String                 @default("Richiesta chiarimenti")
+  domande             String[]
+  stato               ClarificationStatus    @default(INVIATA)
+  dataInvio           DateTime               @default(now())
+  dataRisposta        DateTime?
+  dataScadenza        DateTime?
+  risposta            String?                @db.Text
+  risposte            Json?
+
+  attachments         Attachment[]
+}
+
+enum ClarificationRecipient {
+  PRODUTTORE
+  DISTRIBUTORE
+  RIVENDITORE
+  IMPORTATORE
+  ENTE_CERTIFICAZIONE
+  ALTRO
+}
+
+enum ClarificationStatus {
+  BOZZA
+  INVIATA
+  RICEVUTA
+  RISPOSTA_PARZIALE
+  COMPLETATA
+  SCADUTA
+  ANNULLATA
 }
 
 model AuthorityNotice {
@@ -253,19 +362,153 @@ model AuthorityNotice {
   feedback     String?  @db.Text
   report       Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
   updatedAt    DateTime @updatedAt
+
+  // Campi aggiuntivi per workflow migliorato
+  autorita            AuthorityType         @default(ICQRF)
+  denominazione       String                @default("Autorità competente")
+  riferimento         String?
+  emailAutorita       String?
+  oggetto             String                @default("Segnalazione violazione")
+  testo               String                @db.Text
+  violazioni          String[]
+  gravita             NoticeSeverity        @default(MEDIA)
+  stato               AuthorityNoticeStatus @default(PREPARATA)
+  dataInvio           DateTime?
+  dataRiscontro       DateTime?
+  numeroProtocollo    String?
+  esito               String?               @db.Text
+  azioniIntraprese    String?               @db.Text
+
+  attachments         Attachment[]
+}
+
+enum AuthorityType {
+  ICQRF
+  ASL
+  GUARDIA_FINANZA
+  CARABINIERI_NAS
+  COMUNE
+  REGIONE
+  ALTRO
+}
+
+enum NoticeSeverity {
+  INFORMATIVA
+  BASSA
+  MEDIA
+  ALTA
+  CRITICA
+}
+
+enum AuthorityNoticeStatus {
+  PREPARATA
+  INVIATA
+  RICEVUTA
+  IN_GESTIONE
+  RISOLTA
+  ARCHIVIATA
 }
 
 model Attachment {
   id         String   @id @default(cuid())
-  reportId   String
-  entityType String   // REPORT | INSPECTION | CLARIFICATION | AUTHORITY_NOTICE
-  entityId   String
   filename   String
+  originalName String
+  mimeType   String
+  size       Int
   url        String
+  storagePath String
+
+  // Categorizzazione
+  tipo            AttachmentType  @default(GENERICO)
+  descrizione     String?         @db.Text
+  tags            String[]
+
+  // Relazioni multiple (opzionali)
+  reportId            String?
+  report              Report?                @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  inspectionId        String?
+  inspection          Inspection?            @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  clarificationId     String?
+  clarification       ClarificationRequest?  @relation(fields: [clarificationId], references: [id], onDelete: Cascade)
+
+  authorityNoticeId   String?
+  authorityNotice     AuthorityNotice?       @relation(fields: [authorityNoticeId], references: [id], onDelete: Cascade)
+
+  stateChangeId       String?
+  stateChange         ReportStateChange?     @relation(fields: [stateChangeId], references: [id], onDelete: Cascade)
+
   uploadedBy String
   uploadedAt DateTime @default(now())
-  report     Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  
-  // Le relazioni vengono gestite a livello applicativo tramite entityType ed entityId
+
+  // Campi legacy per compatibilità
+  entityType String?   // REPORT | INSPECTION | CLARIFICATION | AUTHORITY_NOTICE
+  entityId   String?
+
+  @@index([reportId])
+  @@index([inspectionId])
+  @@index([clarificationId])
+  @@index([authorityNoticeId])
+  @@index([stateChangeId])
   @@index([entityType, entityId])
+}
+
+enum AttachmentType {
+  GENERICO
+  FOTOGRAFIA
+  CERTIFICATO
+  ANALISI_LABORATORIO
+  DOCUMENTO_UFFICIALE
+  COMUNICAZIONE
+  FATTURA
+  CONTRATTO
+  ETICHETTA
+  SCREENSHOT
+  REPORT_PDF
+  ALTRO
+}
+
+// === NUOVI MODELLI PER WORKFLOW MIGLIORATO ===
+
+model ReportStateChange {
+  id              String        @id @default(cuid())
+  reportId        String
+  report          Report        @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  statoPrec       ReportStatus
+  statoNuovo      ReportStatus
+
+  motivo          String        @db.Text
+  note            String?       @db.Text
+  metadata        Json?         // Dati specifici per tipo transizione
+
+  userId          String
+  createdAt       DateTime      @default(now())
+
+  attachments     Attachment[]
+
+  @@index([reportId])
+}
+
+model ReportFeedback {
+  id              String   @id @default(cuid())
+  reportId        String
+  report          Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  tipo            FeedbackType
+  testo           String   @db.Text
+  valutazione     Int?     // 1-5 stelle
+  userId          String
+  createdAt       DateTime @default(now())
+
+  @@index([reportId])
+}
+
+enum FeedbackType {
+  COMMENTO
+  VALUTAZIONE
+  RACCOMANDAZIONE
+  NOTA_INTERNA
+  ALTRO
 }

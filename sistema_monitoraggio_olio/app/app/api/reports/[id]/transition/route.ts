@@ -3,66 +3,89 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
-import { ReportStatus } from '@prisma/client';
+import { ReportStatus, InspectionType, ClarificationRecipient, AuthorityType, NoticeSeverity } from '@prisma/client';
 
 // Schema di validazione per le transizioni
-const transitionSchema = z.object({
-  to: z.enum([
+const transitionBaseSchema = z.object({
+  targetStatus: z.enum([
+    'BOZZA',
+    'IN_LAVORAZIONE',
+    'IN_VERIFICA',
+    'RICHIESTA_CHIARIMENTI',
+    'SEGNALATO_AUTORITA',
+    'CHIUSO',
+    'ARCHIVIATO',
+    // Stati legacy per compatibilità
     'ANALISI',
-    'ARCHIVIATA', 
+    'ARCHIVIATA',
     'IN_CONTROLLO',
     'VERIFICA_SOPRALLUOGO',
-    'VERIFICA_CHIARIMENTI', 
+    'VERIFICA_CHIARIMENTI',
     'SEGNALATA_A_ENTE',
     'IN_ATTESA_FEEDBACK_ENTE',
     'CHIUSA'
   ]),
+  motivo: z.string().min(1, 'Motivo obbligatorio'),
   note: z.string().optional(),
-  meta: z.record(z.any()).optional()
+  attachmentIds: z.array(z.string()).optional(),
+  metadata: z.any().optional()
+});
+
+// Schema per metadata ispezione
+const inspectionMetadataSchema = z.object({
+  type: z.literal('inspection'),
+  tipoIspezione: z.nativeEnum(InspectionType),
+  dataIspezione: z.string().transform(str => new Date(str)),
+  luogo: z.string().optional(),
+  ispettore: z.string().optional()
+});
+
+// Schema per metadata chiarimento
+const clarificationMetadataSchema = z.object({
+  type: z.literal('clarification'),
+  destinatario: z.nativeEnum(ClarificationRecipient),
+  emailDestinatario: z.string().email().optional(),
+  oggetto: z.string().min(1),
+  domande: z.array(z.string()),
+  dataScadenza: z.string().transform(str => new Date(str)).optional()
+});
+
+// Schema per metadata segnalazione autorità
+const authorityNoticeMetadataSchema = z.object({
+  type: z.literal('authority_notice'),
+  autorita: z.nativeEnum(AuthorityType),
+  denominazione: z.string().min(1),
+  emailAutorita: z.string().email().optional(),
+  oggetto: z.string().min(1),
+  violazioni: z.array(z.string()),
+  gravita: z.nativeEnum(NoticeSeverity)
+});
+
+// Schema per metadata chiusura
+const closeMetadataSchema = z.object({
+  type: z.literal('close'),
+  motivoChiusura: z.string().min(20, 'Il motivo di chiusura deve contenere almeno 20 caratteri')
 });
 
 // Mappa delle transizioni consentite secondo il workflow
-const allowedTransitions: Record<ReportStatus, ReportStatus[]> = {
-  ANALISI: ['ARCHIVIATA', 'IN_CONTROLLO'],
-  ARCHIVIATA: [], // Stato terminale
-  IN_CONTROLLO: ['VERIFICA_SOPRALLUOGO', 'VERIFICA_CHIARIMENTI', 'SEGNALATA_A_ENTE'],
-  VERIFICA_SOPRALLUOGO: ['CHIUSA', 'SEGNALATA_A_ENTE'],
-  VERIFICA_CHIARIMENTI: ['CHIUSA', 'SEGNALATA_A_ENTE'], 
-  SEGNALATA_A_ENTE: ['IN_ATTESA_FEEDBACK_ENTE'],
-  IN_ATTESA_FEEDBACK_ENTE: ['CHIUSA'],
-  CHIUSA: ['ARCHIVIATA'] // Solo archiviazione dopo chiusura
-};
+const allowedTransitions: Record<string, string[]> = {
+  BOZZA: ['IN_LAVORAZIONE', 'ARCHIVIATO'],
+  IN_LAVORAZIONE: ['IN_VERIFICA', 'RICHIESTA_CHIARIMENTI', 'SEGNALATO_AUTORITA', 'CHIUSO'],
+  IN_VERIFICA: ['IN_LAVORAZIONE', 'RICHIESTA_CHIARIMENTI', 'SEGNALATO_AUTORITA', 'CHIUSO'],
+  RICHIESTA_CHIARIMENTI: ['IN_LAVORAZIONE', 'SEGNALATO_AUTORITA', 'CHIUSO'],
+  SEGNALATO_AUTORITA: ['IN_LAVORAZIONE', 'CHIUSO'],
+  CHIUSO: ['ARCHIVIATO'],
+  ARCHIVIATO: [],
 
-// Mappa dei messaggi di default per ogni tipo di transizione
-const defaultMessages: Record<string, string> = {
-  ANALISI_TO_ARCHIVIATA: 'Report archiviato senza ulteriori azioni necessarie',
-  ANALISI_TO_IN_CONTROLLO: 'Analisi completata, avviato controllo approfondito',
-  IN_CONTROLLO_TO_VERIFICA_SOPRALLUOGO: 'Richiesto sopralluogo per verifica sul campo',
-  IN_CONTROLLO_TO_VERIFICA_CHIARIMENTI: 'Richiesti chiarimenti prima di procedere',
-  IN_CONTROLLO_TO_SEGNALATA_A_ENTE: 'Caso segnalato direttamente alle autorità competenti',
-  VERIFICA_SOPRALLUOGO_TO_CHIUSA: 'Sopralluogo completato, caso chiuso',
-  VERIFICA_SOPRALLUOGO_TO_SEGNALATA_A_ENTE: 'Sopralluogo evidenzia necessità intervento autorità',
-  VERIFICA_CHIARIMENTI_TO_CHIUSA: 'Chiarimenti ricevuti, caso chiuso',
-  VERIFICA_CHIARIMENTI_TO_SEGNALATA_A_ENTE: 'Chiarimenti evidenziano necessità intervento autorità',
-  SEGNALATA_A_ENTE_TO_IN_ATTESA_FEEDBACK_ENTE: 'Segnalazione inviata, in attesa feedback autorità',
-  IN_ATTESA_FEEDBACK_ENTE_TO_CHIUSA: 'Feedback autorità ricevuto, caso chiuso',
-  CHIUSA_TO_ARCHIVIATA: 'Caso chiuso e archiviato definitivamente'
-};
-
-// Tipi di action log per ogni transizione
-const actionTypes: Record<string, string> = {
-  ANALISI_TO_ARCHIVIATA: 'ARCHIVIAZIONE',
-  ANALISI_TO_IN_CONTROLLO: 'AVVIO_CONTROLLO',
-  IN_CONTROLLO_TO_VERIFICA_SOPRALLUOGO: 'RICHIESTA_SOPRALLUOGO',
-  IN_CONTROLLO_TO_VERIFICA_CHIARIMENTI: 'RICHIESTA_CHIARIMENTI',
-  IN_CONTROLLO_TO_SEGNALATA_A_ENTE: 'INVIO_A_ENTE',
-  VERIFICA_SOPRALLUOGO_TO_CHIUSA: 'CHIUSURA_POST_SOPRALLUOGO',
-  VERIFICA_SOPRALLUOGO_TO_SEGNALATA_A_ENTE: 'INVIO_A_ENTE_POST_SOPRALLUOGO',
-  VERIFICA_CHIARIMENTI_TO_CHIUSA: 'CHIUSURA_POST_CHIARIMENTI',
-  VERIFICA_CHIARIMENTI_TO_SEGNALATA_A_ENTE: 'INVIO_A_ENTE_POST_CHIARIMENTI',
-  SEGNALATA_A_ENTE_TO_IN_ATTESA_FEEDBACK_ENTE: 'ATTESA_FEEDBACK',
-  IN_ATTESA_FEEDBACK_ENTE_TO_CHIUSA: 'CHIUSURA_FEEDBACK_ENTE',
-  CHIUSA_TO_ARCHIVIATA: 'ARCHIVIAZIONE'
+  // Stati legacy mappati ai nuovi
+  ANALISI: ['IN_LAVORAZIONE', 'ARCHIVIATO'],
+  IN_CONTROLLO: ['IN_VERIFICA', 'RICHIESTA_CHIARIMENTI', 'SEGNALATO_AUTORITA', 'CHIUSO'],
+  VERIFICA_SOPRALLUOGO: ['IN_VERIFICA'],
+  VERIFICA_CHIARIMENTI: ['RICHIESTA_CHIARIMENTI'],
+  SEGNALATA_A_ENTE: ['SEGNALATO_AUTORITA'],
+  IN_ATTESA_FEEDBACK_ENTE: ['SEGNALATO_AUTORITA'],
+  CHIUSA: ['CHIUSO'],
+  ARCHIVIATA: ['ARCHIVIATO']
 };
 
 // POST /api/reports/[id]/transition - Applica transizione di stato
@@ -74,38 +97,40 @@ export async function POST(
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json(
-        { error: 'Non autorizzato' },
+        { success: false, error: 'Non autorizzato' },
         { status: 401 }
       );
     }
 
     const reportId = params.id;
     const body = await request.json();
-    const validatedData = transitionSchema.parse(body);
+    const validatedData = transitionBaseSchema.parse(body);
 
     // Recupera il report corrente
     const report = await prisma.report.findUnique({
       where: { id: reportId },
       include: {
         inspections: true,
+        clarifications: true,
         authorityNotices: true
       }
     });
 
     if (!report) {
       return NextResponse.json(
-        { error: 'Report non trovato' },
+        { success: false, error: 'Report non trovato' },
         { status: 404 }
       );
     }
 
     const fromStatus = report.status;
-    const toStatus = validatedData.to as ReportStatus;
+    const toStatus = validatedData.targetStatus as ReportStatus;
 
     // Validazione transizione
     if (!allowedTransitions[fromStatus]?.includes(toStatus)) {
       return NextResponse.json(
-        { 
+        {
+          success: false,
           error: 'Transizione non consentita',
           details: `Non è possibile passare da ${fromStatus} a ${toStatus}`,
           allowedTransitions: allowedTransitions[fromStatus] || []
@@ -114,124 +139,155 @@ export async function POST(
       );
     }
 
-    // Validazioni specifiche per certe transizioni
-    if (toStatus === 'SEGNALATA_A_ENTE') {
-      // Quando si segnala a un ente, deve automaticamente diventare IN_ATTESA_FEEDBACK_ENTE
-      const finalStatus = 'IN_ATTESA_FEEDBACK_ENTE';
-      
-      // Esegui la transizione in una transaction
-      const result = await prisma.$transaction(async (tx) => {
-        // Aggiorna lo stato del report
-        const updatedReport = await tx.report.update({
-          where: { id: reportId },
-          data: { status: finalStatus }
-        });
+    // Esegui la transizione in una transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Crea ReportStateChange
+      const stateChange = await tx.reportStateChange.create({
+        data: {
+          reportId,
+          statoPrec: fromStatus,
+          statoNuovo: toStatus,
+          motivo: validatedData.motivo,
+          note: validatedData.note,
+          metadata: validatedData.metadata,
+          userId: session.user.id
+        }
+      });
 
-        // Crea AuthorityNotice se non esiste già per questo report
-        const existingNotice = report.authorityNotices.find(notice => !notice.feedbackAt);
-        if (!existingNotice) {
-          await tx.authorityNotice.create({
+      // Gestione allegati per il cambio stato
+      if (validatedData.attachmentIds && validatedData.attachmentIds.length > 0) {
+        await tx.attachment.updateMany({
+          where: {
+            id: { in: validatedData.attachmentIds }
+          },
+          data: {
+            stateChangeId: stateChange.id
+          }
+        });
+      }
+
+      // Gestione creazione entità correlate basata su metadata
+      let createdEntity = null;
+
+      if (validatedData.metadata) {
+        if (validatedData.metadata.type === 'inspection') {
+          // Crea Inspection
+          const inspectionData = inspectionMetadataSchema.parse(validatedData.metadata);
+          createdEntity = await tx.inspection.create({
+            data: {
+              reportId,
+              tipo: inspectionData.tipoIspezione,
+              date: inspectionData.dataIspezione,
+              inspectorId: session.user.id,
+              location: inspectionData.luogo,
+              ispettore: inspectionData.ispettore,
+              stato: 'PIANIFICATA'
+            }
+          });
+        } else if (validatedData.metadata.type === 'clarification') {
+          // Crea ClarificationRequest
+          const clarificationData = clarificationMetadataSchema.parse(validatedData.metadata);
+          createdEntity = await tx.clarificationRequest.create({
+            data: {
+              reportId,
+              requestedBy: session.user.id,
+              destinatario: clarificationData.destinatario,
+              emailDestinatario: clarificationData.emailDestinatario,
+              oggetto: clarificationData.oggetto,
+              question: clarificationData.domande.join('\n'),
+              domande: clarificationData.domande,
+              stato: 'INVIATA',
+              dataScadenza: clarificationData.dataScadenza,
+              dueAt: clarificationData.dataScadenza
+            }
+          });
+        } else if (validatedData.metadata.type === 'authority_notice') {
+          // Crea AuthorityNotice
+          const authorityData = authorityNoticeMetadataSchema.parse(validatedData.metadata);
+          createdEntity = await tx.authorityNotice.create({
             data: {
               reportId,
               sentBy: session.user.id,
-              authority: validatedData.meta?.authority || 'Ente Competente',
-              protocol: validatedData.meta?.protocol || null
+              autorita: authorityData.autorita,
+              authority: authorityData.denominazione,
+              denominazione: authorityData.denominazione,
+              emailAutorita: authorityData.emailAutorita,
+              oggetto: authorityData.oggetto,
+              testo: validatedData.motivo,
+              violazioni: authorityData.violazioni,
+              gravita: authorityData.gravita,
+              stato: 'PREPARATA'
+            }
+          });
+        } else if (validatedData.metadata.type === 'close') {
+          // Aggiorna report con motivo chiusura
+          const closeData = closeMetadataSchema.parse(validatedData.metadata);
+          await tx.report.update({
+            where: { id: reportId },
+            data: {
+              motivoChiusura: closeData.motivoChiusura,
+              dataChiusura: new Date()
             }
           });
         }
-
-        // Crea ActionLog per INVIO_A_ENTE
-        await tx.actionLog.create({
-          data: {
-            reportId,
-            type: 'INVIO_A_ENTE',
-            message: validatedData.note || defaultMessages[`${fromStatus}_TO_SEGNALATA_A_ENTE`] || 'Segnalazione inviata alle autorità competenti',
-            actorId: session.user.id,
-            meta: {
-              fromStatus,
-              toStatus: finalStatus,
-              authority: validatedData.meta?.authority,
-              protocol: validatedData.meta?.protocol,
-              ...validatedData.meta
-            }
-          }
-        });
-
-        return updatedReport;
-      });
-
-      return NextResponse.json({
-        report: result,
-        message: 'Report segnalato alle autorità competenti'
-      });
-    }
-
-    // Validazione specifica per chiusura da sopralluogo
-    if (fromStatus === 'VERIFICA_SOPRALLUOGO' && toStatus === 'CHIUSA') {
-      const hasCompletedInspection = report.inspections.some(
-        inspection => inspection.minutesText && inspection.minutesText.trim().length > 0
-      );
-      
-      if (!hasCompletedInspection) {
-        return NextResponse.json(
-          { 
-            error: 'Chiusura non consentita',
-            details: 'È necessario completare almeno un sopralluogo con verbale prima di chiudere il caso'
-          },
-          { status: 400 }
-        );
       }
-    }
 
-    // Esegui la transizione standard
-    const updatedReport = await prisma.$transaction(async (tx) => {
       // Aggiorna lo stato del report
-      const report = await tx.report.update({
+      const updatedReport = await tx.report.update({
         where: { id: reportId },
         data: { status: toStatus }
       });
 
       // Crea ActionLog
-      const transitionKey = `${fromStatus}_TO_${toStatus}`;
       await tx.actionLog.create({
         data: {
           reportId,
-          type: actionTypes[transitionKey] || 'TRANSIZIONE_STATO',
-          message: validatedData.note || defaultMessages[transitionKey] || `Transizione da ${fromStatus} a ${toStatus}`,
+          type: 'TRANSIZIONE_STATO',
+          message: `Cambio stato: ${fromStatus} → ${toStatus}. ${validatedData.motivo}`,
           actorId: session.user.id,
           meta: {
             fromStatus,
             toStatus,
-            ...validatedData.meta
+            stateChangeId: stateChange.id,
+            entityCreated: createdEntity ? {
+              type: validatedData.metadata?.type,
+              id: createdEntity.id
+            } : null,
+            ...validatedData.metadata
           }
         }
       });
 
-      return report;
+      return {
+        report: updatedReport,
+        stateChange,
+        createdEntity
+      };
     });
 
     return NextResponse.json({
-      report: updatedReport,
-      message: 'Transizione applicata con successo'
+      success: true,
+      data: result,
+      message: `Cambio di stato completato con successo: ${fromStatus} → ${toStatus}`
     });
 
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Dati non validi', details: error.errors },
+        { success: false, error: 'Dati non validi', details: error.errors },
         { status: 400 }
       );
     }
 
     console.error('Errore transizione report:', error);
     return NextResponse.json(
-      { error: 'Errore interno del server' },
+      { success: false, error: 'Errore interno del server', details: String(error) },
       { status: 500 }
     );
   }
 }
 
-// GET /api/reports/[id]/transition - Ottieni transizioni disponibili per il report
+// GET /api/reports/[id]/transition - Ottieni storico transizioni e transizioni disponibili
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -240,7 +296,7 @@ export async function GET(
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json(
-        { error: 'Non autorizzato' },
+        { success: false, error: 'Non autorizzato' },
         { status: 401 }
       );
     }
@@ -249,32 +305,50 @@ export async function GET(
 
     const report = await prisma.report.findUnique({
       where: { id: reportId },
-      select: { status: true }
+      include: {
+        stateChanges: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            attachments: true
+          }
+        },
+        inspections: {
+          orderBy: { createdAt: 'desc' }
+        },
+        clarifications: {
+          orderBy: { requestedAt: 'desc' }
+        },
+        authorityNotices: {
+          orderBy: { sentAt: 'desc' }
+        }
+      }
     });
 
     if (!report) {
       return NextResponse.json(
-        { error: 'Report non trovato' },
+        { success: false, error: 'Report non trovato' },
         { status: 404 }
       );
     }
 
     const availableTransitions = allowedTransitions[report.status] || [];
-    
+
     return NextResponse.json({
-      currentStatus: report.status,
-      availableTransitions,
-      transitionDescriptions: availableTransitions.reduce((acc, status) => {
-        const key = `${report.status}_TO_${status}`;
-        acc[status] = defaultMessages[key] || `Transizione a ${status}`;
-        return acc;
-      }, {} as Record<string, string>)
+      success: true,
+      data: {
+        currentStatus: report.status,
+        availableTransitions,
+        stateChanges: report.stateChanges,
+        inspections: report.inspections,
+        clarifications: report.clarifications,
+        authorityNotices: report.authorityNotices
+      }
     });
 
   } catch (error) {
     console.error('Errore recupero transizioni:', error);
     return NextResponse.json(
-      { error: 'Errore interno del server' },
+      { success: false, error: 'Errore interno del server' },
       { status: 500 }
     );
   }
