@@ -115,6 +115,7 @@ export async function extractTextFromLabel(base64Image: string): Promise<string>
     const extractedText = response.choices[0].message.content || '';
     const duration = Date.now() - startTime;
     console.log(`✅ [OCR] Completato in ${duration}ms, estratti ${extractedText.length} caratteri`);
+    console.log(`📄 [OCR] Testo estratto: ${extractedText.substring(0, 200)}...`);
 
     return extractedText;
   } catch (error) {
@@ -169,8 +170,25 @@ Rispondi in JSON con questo formato:
       'Conformity Analysis'
     );
 
-    const result = JSON.parse(response.choices[0].message.content || '{}');
+    const content = response.choices[0].message.content;
     const duration = Date.now() - startTime;
+    
+    console.log(`   📄 Raw conformity response: ${content}`);
+    
+    let result: any;
+    try {
+      result = JSON.parse(content || '{}');
+      console.log(`   ✅ JSON parsed:`, JSON.stringify(result, null, 2));
+    } catch (parseError) {
+      console.error(`   ❌ Errore parsing JSON conformità:`, parseError);
+      result = {
+        risultato: 'sospetto',
+        percentualeMatch: 0,
+        violazioni: ['Errore parsing risposta AI'],
+        note: `Raw: ${content?.substring(0, 200)}`
+      };
+    }
+    
     console.log(`✅ [Conformità] Completato in ${duration}ms: ${result.risultato} (${result.percentualeMatch}%)`);
 
     return {
@@ -251,10 +269,28 @@ Confronta nome prodotto, produttore, denominazione, regione e comune. Calcola il
     );
 
     const content = response.choices[0].message.content;
-    console.log(`   Raw response: ${content?.substring(0, 200)}...`);
-    
-    const result = JSON.parse(content || '{}');
     const duration = Date.now() - startTime;
+    
+    console.log(`   📄 Raw response COMPLETA: ${content}`);
+    
+    let result: any;
+    try {
+      result = JSON.parse(content || '{}');
+      console.log(`   ✅ JSON parsed successfully:`, JSON.stringify(result, null, 2));
+    } catch (parseError) {
+      console.error(`   ❌ Errore parsing JSON:`, parseError);
+      console.log(`   📄 Contenuto che ha causato errore: ${content}`);
+      
+      // Fallback: prova a estrarre numeri dal testo
+      const scoreMatch = content?.match(/matchScore["\s:]+(\d+)/i);
+      const extractedScore = scoreMatch ? parseInt(scoreMatch[1]) : 0;
+      
+      result = {
+        matchScore: extractedScore,
+        differences: ['Impossibile parsare risposta AI'],
+        reasoning: `Raw response: ${content?.substring(0, 200)}`
+      };
+    }
     
     console.log(`✅ [Confronto Testo] Completato in ${duration}ms`);
     console.log(`   Match Score: ${result.matchScore}%`);
