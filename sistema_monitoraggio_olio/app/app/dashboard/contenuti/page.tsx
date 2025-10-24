@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, Minus, RefreshCw, Search, Filter, Eye, Pencil, Trash2, Calendar, Tag, ExternalLink } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, RefreshCw, Search, Filter, Eye, Calendar, Tag, ExternalLink, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 
 interface Contenuto {
   id: string;
@@ -28,6 +28,26 @@ interface Contenuto {
   dataPost: string;
   rilevanza: number;
   createdAt: string;
+  metadata?: {
+    aiAnalysis?: {
+      confidence?: number;
+      reasoning?: string;
+    };
+    sentimentAnalysis?: {
+      base?: {
+        sentiment: string;
+        score: number;
+        confidence: number;
+        method: string;
+      };
+      ai?: {
+        sentiment: string;
+        score: number;
+        confidence: number;
+        method: string;
+      };
+    };
+  };
 }
 
 interface Stats {
@@ -37,14 +57,26 @@ interface Stats {
   negativi: number;
 }
 
+interface ProviderStatus {
+  name: string;
+  status: 'active' | 'inactive' | 'error';
+  lastCheck?: string;
+}
+
 export default function ContenutiMonitoratiPage() {
   const router = useRouter();
   const [contenuti, setContenuti] = useState<Contenuto[]>([]);
   const [filteredContenuti, setFilteredContenuti] = useState<Contenuto[]>([]);
   const [stats, setStats] = useState<Stats>({ totale: 0, positivi: 0, neutri: 0, negativi: 0 });
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [testingAI, setTestingAI] = useState(false);
+  const [loadingDemo, setLoadingDemo] = useState(false);
+  const [testingProviders, setTestingProviders] = useState(false);
+  
+  // Provider status
+  const [providers, setProviders] = useState<ProviderStatus[]>([]);
   
   // Filtri
   const [searchTerm, setSearchTerm] = useState('');
@@ -61,6 +93,7 @@ export default function ContenutiMonitoratiPage() {
   useEffect(() => {
     fetchContenuti();
     fetchActiveKeywords();
+    checkProviders();
   }, []);
 
   useEffect(() => {
@@ -95,6 +128,77 @@ export default function ContenutiMonitoratiPage() {
     }
   };
 
+  const checkProviders = async () => {
+    try {
+      const response = await fetch('/api/providers/test');
+      if (!response.ok) throw new Error('Errore nel test providers');
+      
+      const data = await response.json();
+      setProviders(data.providers || []);
+    } catch (error) {
+      console.error('Errore nel check providers:', error);
+    }
+  };
+
+  const syncProviders = async () => {
+  try {
+    setSyncing(true);
+    
+    // Mostra messaggio iniziale
+    const startMessage = "🔄 Avvio sincronizzazione...\n\n" +
+      "Sto contattando i provider esterni:\n" +
+      "• SerpAPI (Google News)\n" +
+      "• SerpAPI (Reddit)\n" +
+      "• Webz.io\n\n" +
+      "⏳ Questa operazione può richiedere 10-30 secondi.\n" +
+      "Attendi senza ricaricare la pagina...";
+    
+    // Crea un alert che mostra il progresso (opzionale)
+    console.log(startMessage);
+    
+    const response = await fetch('/api/providers/sync', {
+      method: 'POST'
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Errore nella sincronizzazione');
+    }
+    
+    const data = await response.json();
+    setLastSync(new Date());
+    setNewContentCount(data.newContents || 0);
+    
+    // Ricarica contenuti dopo la sincronizzazione
+    await fetchContenuti();
+    
+    // Messaggio di successo dettagliato
+    const successMessage = `✅ Sincronizzazione completata con successo!\n\n` +
+      `📊 Risultati:\n` +
+      `• Nuovi contenuti trovati: ${data.newContents || 0}\n` +
+      `• Provider utilizzati: ${data.providersUsed || 'N/A'}\n` +
+      `• Tempo impiegato: ${data.duration || 'N/A'}\n\n` +
+      `I contenuti sono stati aggiunti alla lista.`;
+    
+    alert(successMessage);
+    
+  } catch (error) {
+    console.error('Errore sincronizzazione:', error);
+    
+    const errorMessage = `❌ Errore durante la sincronizzazione\n\n` +
+      `Dettagli: ${error instanceof Error ? error.message : 'Errore sconosciuto'}\n\n` +
+      `Possibili cause:\n` +
+      `• Chiavi API non configurate o scadute\n` +
+      `• Problemi di connessione\n` +
+      `• Quota API esaurita\n\n` +
+      `Prova a cliccare "Test Provider" per verificare lo stato delle API.`;
+    
+    alert(errorMessage);
+  } finally {
+    setSyncing(false);
+  }
+};
+
   const updateKeywords = async () => {
     try {
       setUpdating(true);
@@ -105,18 +209,28 @@ export default function ContenutiMonitoratiPage() {
       if (!response.ok) throw new Error('Errore nell\'aggiornamento');
       
       const data = await response.json();
-      setLastSync(new Date());
-      setNewContentCount(data.updated || 0);
       
       // Ricarica contenuti dopo l'aggiornamento
       await fetchContenuti();
       
-      alert(`✅ Aggiornamento completato!\nProcessati: ${data.processed || 0}\nAggiornati: ${data.updated || 0}`);
+      alert(`✅ Keywords aggiornate!\nProcessati: ${data.processed || 0}\nAggiornati: ${data.updated || 0}`);
     } catch (error) {
       console.error('Errore aggiornamento:', error);
       alert('❌ Errore durante l\'aggiornamento keywords');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const testProviders = async () => {
+    try {
+      setTestingProviders(true);
+      await checkProviders();
+      alert('✅ Test providers completato! Controlla lo stato nella sezione "Multi-Provider"');
+    } catch (error) {
+      alert('❌ Errore durante il test providers');
+    } finally {
+      setTestingProviders(false);
     }
   };
 
@@ -159,10 +273,27 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
     }
   };
 
+  const loadDemoData = async () => {
+    try {
+      setLoadingDemo(true);
+      const response = await fetch('/api/contenuti/demo', {
+        method: 'POST'
+      });
+      
+      if (!response.ok) throw new Error('Errore nel caricamento demo');
+      
+      await fetchContenuti();
+      alert('✅ Dati demo caricati con successo!');
+    } catch (error) {
+      alert('❌ Errore durante il caricamento dati demo');
+    } finally {
+      setLoadingDemo(false);
+    }
+  };
+
   const applyFilters = () => {
     let filtered = [...contenuti];
 
-    // Filtro ricerca testuale
     if (searchTerm) {
       filtered = filtered.filter(c => 
         c.testo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -170,17 +301,14 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
       );
     }
 
-    // Filtro sentiment
     if (sentimentFilter !== 'all') {
       filtered = filtered.filter(c => c.sentiment === sentimentFilter);
     }
 
-    // Filtro fonte
     if (fonteFilter !== 'all') {
       filtered = filtered.filter(c => c.fonte === fonteFilter);
     }
 
-    // Filtro data
     if (dateFilter !== 'all') {
       const now = new Date();
       filtered = filtered.filter(c => {
@@ -196,7 +324,6 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
       });
     }
 
-    // Filtro keyword
     if (keywordFilter !== 'all') {
       filtered = filtered.filter(c => c.keywords.includes(keywordFilter));
     }
@@ -228,6 +355,14 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
     }
   };
 
+  const getProviderIcon = (status: string) => {
+    switch (status) {
+      case 'active': return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case 'error': return <XCircle className="w-4 h-4 text-red-600" />;
+      default: return <AlertCircle className="w-4 h-4 text-gray-400" />;
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return new Intl.DateTimeFormat('it-IT', {
@@ -255,11 +390,16 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
 
   return (
     <div className="container mx-auto py-8 px-4">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Contenuti Monitorati</h1>
-        <p className="text-gray-600">
-          Analisi e monitoraggio dei contenuti online relativi alle parole chiave configurate
-        </p>
+      <div className="flex justify-between items-start mb-8">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Contenuti Monitorati</h1>
+          <p className="text-gray-600">
+            Analisi e monitoraggio dei contenuti online relativi alle parole chiave configurate
+          </p>
+        </div>
+        <Button variant="outline" onClick={() => router.push('/dashboard')}>
+          ← Torna alla Dashboard
+        </Button>
       </div>
 
       {/* Filtri e Ricerca */}
@@ -329,8 +469,8 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
           </Select>
         </div>
 
-        <div className="flex flex-wrap gap-2 items-center">
-          <p className="text-sm text-gray-600">
+        <div className="mb-4">
+          <p className="text-sm text-gray-600 mb-2">
             Keywords attive: <strong>{activeKeywords.join(', ') || 'Nessuna keyword attiva'}</strong>
           </p>
           {lastSync && (
@@ -341,20 +481,39 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
           )}
         </div>
 
-        <div className="flex gap-2 mt-4">
+        <div className="flex flex-wrap gap-2">
           <Button onClick={resetFilters} variant="outline" size="sm">
             Reset Filtri
           </Button>
           <Button 
+  onClick={syncProviders} 
+  disabled={syncing}
+  variant="default"
+  size="sm"
+  className={syncing ? "animate-pulse" : ""}
+>
+  {syncing ? (
+    <>
+      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+      Sincronizzando... (10-30s)
+    </>
+  ) : (
+    <>
+      <RefreshCw className="w-4 h-4 mr-2" />
+      Sincronizza Provider
+    </>
+  )}
+</Button>
+          <Button 
             onClick={updateKeywords} 
             disabled={updating}
-            variant="default"
+            variant="secondary"
             size="sm"
           >
             {updating ? (
               <>
                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                Aggiornamento...
+                Aggiornando...
               </>
             ) : (
               <>
@@ -364,6 +523,14 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
             )}
           </Button>
           <Button 
+            onClick={testProviders}
+            disabled={testingProviders}
+            variant="outline"
+            size="sm"
+          >
+            {testingProviders ? '⏳ Testing...' : '🔧 Test Provider'}
+          </Button>
+          <Button 
             onClick={testAIAnalysis}
             disabled={testingAI}
             variant="outline"
@@ -371,8 +538,47 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
           >
             {testingAI ? '⏳ Testing...' : '🤖 Test AI'}
           </Button>
+          <Button 
+            onClick={loadDemoData}
+            disabled={loadingDemo}
+            variant="outline"
+            size="sm"
+          >
+            {loadingDemo ? '⏳ Loading...' : '📊 Carica Dati Demo'}
+          </Button>
         </div>
       </Card>
+
+      {/* Provider Status */}
+      {providers.length > 0 && (
+        <Card className="p-6 mb-6 bg-green-50 border-green-200">
+          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+            <CheckCircle className="w-5 h-5 text-green-600" />
+            Multi-Provider: Attivo
+          </h3>
+          <div className="text-sm">
+            <p className="mb-2">{providers.filter(p => p.status === 'active').length}/{providers.length} provider funzionanti</p>
+            <div className="flex flex-wrap gap-2">
+              {providers.map((provider, index) => (
+                <Badge 
+                  key={index}
+                  variant="outline"
+                  className={
+                    provider.status === 'active' 
+                      ? 'bg-green-100 text-green-800 border-green-300'
+                      : provider.status === 'error'
+                      ? 'bg-red-100 text-red-800 border-red-300'
+                      : 'bg-gray-100 text-gray-800 border-gray-300'
+                  }
+                >
+                  {getProviderIcon(provider.status)}
+                  <span className="ml-1">{provider.name}</span>
+                </Badge>
+              ))}
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Statistiche */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -424,7 +630,7 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
             <div className="text-center text-gray-500">
               <Search className="w-16 h-16 mx-auto mb-4 text-gray-300" />
               <p className="text-lg font-medium mb-2">Nessun contenuto trovato</p>
-              <p className="text-sm">Prova a modificare i filtri o aggiornare le keywords</p>
+              <p className="text-sm">Prova a modificare i filtri o sincronizzare i provider</p>
             </div>
           </Card>
         ) : (
@@ -433,8 +639,8 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3 flex-1">
                   {getSentimentIcon(contenuto.sentiment)}
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <Badge variant="outline" className={getSentimentColor(contenuto.sentiment)}>
                         {contenuto.sentiment}
                       </Badge>
@@ -445,6 +651,52 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
                         Score: {contenuto.sentimentScore.toFixed(2)}
                       </span>
                     </div>
+                    
+                    {/* DOPPIA ANALISI SENTIMENT */}
+                    {contenuto.metadata?.sentimentAnalysis && (
+                      <div className="grid grid-cols-2 gap-4 p-3 bg-gray-50 rounded-lg mb-2">
+                        {/* Analisi Base */}
+                        {contenuto.metadata.sentimentAnalysis.base && (
+                          <div className="border-r pr-3">
+                            <p className="text-xs font-semibold text-gray-500 mb-1">📊 ANALISI BASE</p>
+                            <div className="space-y-1">
+                              <p className="text-sm">
+                                Sentiment: <Badge variant="outline" className={getSentimentColor(contenuto.metadata.sentimentAnalysis.base.sentiment)}>
+                                  {contenuto.metadata.sentimentAnalysis.base.sentiment}
+                                </Badge>
+                              </p>
+                              <p className="text-xs text-gray-600">
+                                Score: {contenuto.metadata.sentimentAnalysis.base.score.toFixed(2)}
+                              </p>
+                              <p className="text-xs text-gray-600">
+                                Confidence: {(contenuto.metadata.sentimentAnalysis.base.confidence * 100).toFixed(0)}%
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Analisi AI */}
+                        {contenuto.metadata.sentimentAnalysis.ai && (
+                          <div className="pl-3">
+                            <p className="text-xs font-semibold text-gray-500 mb-1">🤖 ANALISI AI</p>
+                            <div className="space-y-1">
+                              <p className="text-sm">
+                                Sentiment: <Badge variant="outline" className={getSentimentColor(contenuto.metadata.sentimentAnalysis.ai.sentiment)}>
+                                  {contenuto.metadata.sentimentAnalysis.ai.sentiment}
+                                </Badge>
+                              </p>
+                              <p className="text-xs text-gray-600">
+                                Score: {contenuto.metadata.sentimentAnalysis.ai.score.toFixed(2)}
+                              </p>
+                              <p className="text-xs text-gray-600">
+                                Confidence: {(contenuto.metadata.sentimentAnalysis.ai.confidence * 100).toFixed(0)}%
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
                     <div className="flex items-center gap-2 text-sm text-gray-500">
                       <span className="font-medium">{contenuto.fonte}</span>
                       <span>•</span>
