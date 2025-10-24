@@ -1,4 +1,4 @@
-import { analyzeSentiment as analyzeSentimentOpenAI } from '@/services/openai';
+import { analyzeSentiment as analyzeSentimentOpenAI } from '@/src/services/openai';
 
 /**
  * Analisi sentiment BASE (keyword-based)
