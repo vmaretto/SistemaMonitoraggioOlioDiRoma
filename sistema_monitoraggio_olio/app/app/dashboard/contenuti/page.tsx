@@ -129,16 +129,24 @@ export default function ContenutiMonitoratiPage() {
   };
 
   const checkProviders = async () => {
-    try {
-      const response = await fetch('/api/providers/test');
-      if (!response.ok) throw new Error('Errore nel test providers');
-      
-      const data = await response.json();
-      setProviders(data.providers || []);
-    } catch (error) {
-      console.error('Errore nel check providers:', error);
+  try {
+    const response = await fetch('/api/providers/test');
+    if (!response.ok) {
+      console.error('Errore nel test providers');
+      return;
     }
-  };
+    
+    const data = await response.json();
+    console.log('Provider data:', data); // Debug
+    
+    // Controlla diversi formati di risposta
+    const providersList = data.providers || data.results || [];
+    
+    setProviders(providersList);
+  } catch (error) {
+    console.error('Errore nel check providers:', error);
+  }
+};
 
   const syncProviders = async () => {
   try {
