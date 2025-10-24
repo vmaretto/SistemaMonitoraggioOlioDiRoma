@@ -165,7 +165,7 @@ export async function compareTextWithOfficialLabel(
         {
           role: "user",
           content: `Testo estratto dall'etichetta:
-${extractedText}
+${testoOcr}
 
 Etichetta ufficiale di riferimento:
 - Nome: ${officialLabel.nome}
