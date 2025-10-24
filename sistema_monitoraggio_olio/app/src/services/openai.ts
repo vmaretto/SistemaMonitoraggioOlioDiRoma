@@ -135,13 +135,16 @@ Rispondi in JSON con questo formato:
  * Confronta il testo OCR con i dati di un'etichetta ufficiale
  */
 export async function compareTextWithOfficialLabel(
-  extractedText: string,
-  officialLabel: {
-    nome: string;
-    produttore?: string | null;
-    denominazione: string;
-    regioneProduzione: string;
-  }
+     testoOcr: string,
+     officialData: {
+       nome: string;
+       produttore?: string | null;
+       denominazione: string;
+       regioneProduzione: string;
+       comune?: string | null;
+       tipoEtichetta?: string | null;
+     }
+   )
 ): Promise<{
   matchScore: number;
   differences: string[];
