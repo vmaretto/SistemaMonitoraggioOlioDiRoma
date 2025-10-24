@@ -28,6 +28,7 @@ interface Etichetta {
   tipoEtichetta: string;
   imageFronteUrl?: string;
   imageRetroUrl?: string;
+  imageUrl?: string;
   isAttiva: boolean;
   createdAt: string;
 }
