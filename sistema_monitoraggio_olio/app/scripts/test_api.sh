@@ -3,7 +3,9 @@
 # Script di test per API Sistema Tracciabilità Ispettori
 # Testa tutti gli endpoint implementati per il workflow dei report
 
-BASE_URL="http://localhost:5000"
+# Usa la porta dalla variabile d'ambiente PORT, altrimenti default 3000
+PORT=${PORT:-3000}
+BASE_URL="http://localhost:$PORT"
 API_BASE="$BASE_URL/api"
 
 # Colori per output
