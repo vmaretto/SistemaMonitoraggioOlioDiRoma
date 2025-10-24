@@ -106,10 +106,21 @@ export async function GET(request: NextRequest) {
 
     const totalPages = Math.ceil(totalCount / limit);
 
-    return NextResponse.json({
-      contenuti,
-      activeKeywords: activeKeywords.map(k => k.keyword),
-      total: totalCount,
+    const totalPages = Math.ceil(totalCount / limit);
+
+// Calcola statistiche sentiment (fix: DB usa "neutrale" non "neutro")
+const stats = {
+  totale: totalCount,
+  positivi: contenuti.filter(c => c.sentiment === 'positivo').length,
+  neutri: contenuti.filter(c => c.sentiment === 'neutrale').length,  // ✅ CORRETTO
+  negativi: contenuti.filter(c => c.sentiment === 'negativo').length
+};
+
+return NextResponse.json({
+  contenuti,
+  activeKeywords: activeKeywords.map(k => k.keyword),
+  stats,  // ✅ Aggiungi le statistiche
+  total: totalCount,
       pagination: {
         page,
         limit,
