@@ -137,12 +137,40 @@ export default function ContenutiMonitoratiPage() {
     }
     
     const data = await response.json();
-    console.log('Provider data:', data); // Debug
+    console.log('Provider data ricevuto:', data);
     
-    // Controlla diversi formati di risposta
-    const providersList = data.providers || data.results || [];
+    // Converte il formato dell'API in array per l'UI
+    const providersList: ProviderStatus[] = [];
     
+    if (data.providers) {
+      // Webz.io
+      if (data.providers.webzio !== undefined) {
+        providersList.push({
+          name: 'Webz.io - Monitoraggio Web',
+          status: data.providers.webzio ? 'active' : 'error'
+        });
+      }
+      
+      // SerpAPI Google News
+      if (data.providers.serpapi_google_news !== undefined) {
+        providersList.push({
+          name: 'SerpAPI - Google News',
+          status: data.providers.serpapi_google_news ? 'active' : 'error'
+        });
+      }
+      
+      // SerpAPI Reddit
+      if (data.providers.serpapi_reddit !== undefined) {
+        providersList.push({
+          name: 'SerpAPI - Reddit',
+          status: data.providers.serpapi_reddit ? 'active' : 'error'
+        });
+      }
+    }
+    
+    console.log('Providers processati:', providersList);
     setProviders(providersList);
+    
   } catch (error) {
     console.error('Errore nel check providers:', error);
   }
