@@ -211,11 +211,13 @@ export async function POST(request: NextRequest) {
         const textualScoresPromises = etichette.map(async (etichetta) => {
           try {
             const textComparison = await compareTextWithOfficialLabel(testoOcr, {
-              nome: etichetta.nome,
-              produttore: etichetta.produttore,
-              denominazione: etichetta.denominazione,
-              regioneProduzione: etichetta.regioneProduzione
-            });
+  nome: etichetta.nome,
+  produttore: etichetta.produttore,
+  denominazione: etichetta.denominazione,
+  regioneProduzione: etichetta.regioneProduzione,
+  comune: etichetta.comune,
+  tipoEtichetta: etichetta.tipoEtichetta
+});
             
             return { etichetta, textComparison };
           } catch (error) {
@@ -251,7 +253,13 @@ export async function POST(request: NextRequest) {
 
           try {
             // Scarica l'immagine di riferimento
-            const refImageResponse = await fetch(etichetta.imageUrl);
+            // Usa imageFronteUrl come principale, imageUrl come fallback
+            const imageToCompare = etichetta.imageFronteUrl || etichetta.imageUrl;
+            if (!imageToCompare) continue;
+
+            const refImageResponse = await fetch(imageToCompare);
+
+            
             if (!refImageResponse.ok) continue;
 
             const refBuffer = await refImageResponse.arrayBuffer();
