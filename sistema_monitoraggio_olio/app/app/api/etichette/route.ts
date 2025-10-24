@@ -84,7 +84,11 @@ export async function POST(request: NextRequest) {
     console.log('👤 Step 2: Verifica ruolo...');
     console.log('Ruolo utente:', session.user.role);
     
-    if (session.user.role !== 'direttore' && session.user.role !== 'admin') {
+    // Verifica ruolo (case-insensitive)
+const userRole = session.user.role?.toUpperCase();
+if (userRole !== 'DIRETTORE' && userRole !== 'ADMIN') {
+
+      
       console.error('❌ Ruolo non autorizzato:', session.user.role);
       return NextResponse.json({ 
         error: 'Non hai i permessi per caricare etichette ufficiali. Serve ruolo direttore o admin.' 
