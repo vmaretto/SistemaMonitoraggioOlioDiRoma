@@ -144,7 +144,6 @@ export async function compareTextWithOfficialLabel(
        comune?: string | null;
        tipoEtichetta?: string | null;
      }
-   )
 ): Promise<{
   matchScore: number;
   differences: string[];
