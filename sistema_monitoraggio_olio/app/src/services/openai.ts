@@ -135,15 +135,15 @@ Rispondi in JSON con questo formato:
  * Confronta il testo OCR con i dati di un'etichetta ufficiale
  */
 export async function compareTextWithOfficialLabel(
-     testoOcr: string,
-     officialData: {
-       nome: string;
-       produttore?: string | null;
-       denominazione: string;
-       regioneProduzione: string;
-       comune?: string | null;
-       tipoEtichetta?: string | null;
-     }
+  testoOcr: string,
+  officialData: {
+    nome: string;
+    produttore?: string | null;
+    denominazione: string;
+    regioneProduzione: string;
+    comune?: string | null;
+    tipoEtichetta?: string | null;
+  }
 ): Promise<{
   matchScore: number;
   differences: string[];
@@ -168,12 +168,14 @@ export async function compareTextWithOfficialLabel(
 ${testoOcr}
 
 Etichetta ufficiale di riferimento:
-- Nome: ${officialLabel.nome}
-- Produttore: ${officialLabel.produttore || 'N/A'}
-- Denominazione: ${officialLabel.denominazione}
-- Regione: ${officialLabel.regioneProduzione}
+- Nome: ${officialData.nome}
+- Produttore: ${officialData.produttore || 'N/A'}
+- Denominazione: ${officialData.denominazione}
+- Regione: ${officialData.regioneProduzione}
+- Comune: ${officialData.comune || 'N/A'}
+- Tipo: ${officialData.tipoEtichetta || 'N/A'}
 
-Confronta nome prodotto, produttore, denominazione e regione. Calcola il match score.`,
+Confronta nome prodotto, produttore, denominazione, regione e comune. Calcola il match score.`,
         },
       ],
       response_format: { type: "json_object" },
