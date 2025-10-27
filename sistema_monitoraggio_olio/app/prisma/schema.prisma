@@ -216,16 +216,6 @@ enum ReportStatus {
   SEGNALATO_AUTORITA
   CHIUSO
   ARCHIVIATO
-
-  // Stati legacy mantenuti per compatibilità
-  ANALISI
-  ARCHIVIATA
-  IN_CONTROLLO
-  VERIFICA_SOPRALLUOGO
-  VERIFICA_CHIARIMENTI
-  SEGNALATA_A_ENTE
-  IN_ATTESA_FEEDBACK_ENTE
-  CHIUSA
 }
 
 enum ReportPriority {
