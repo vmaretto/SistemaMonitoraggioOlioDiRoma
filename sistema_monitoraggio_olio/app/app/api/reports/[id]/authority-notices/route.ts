@@ -97,13 +97,13 @@ export async function POST(
     }
 
     // Verifica che il report sia in uno stato che permette segnalazioni all'ente
-    // Praticamente tutti gli stati tranne ANALISI e ARCHIVIATA
-    const forbiddenStatuses = ['ANALISI', 'ARCHIVIATA'];
+    // Praticamente tutti gli stati tranne BOZZA e ARCHIVIATO
+    const forbiddenStatuses = ['BOZZA', 'ARCHIVIATO'];
     if (forbiddenStatuses.includes(report.status)) {
       return NextResponse.json(
-        { 
+        {
           error: 'Stato del report non valido',
-          details: `Le segnalazioni all'ente non sono consentite per report in stato ${report.status}. Il report deve essere almeno in fase di controllo.`
+          details: `Le segnalazioni all'ente non sono consentite per report in stato ${report.status}. Il report deve essere almeno in lavorazione.`
         },
         { status: 400 }
       );
@@ -132,10 +132,10 @@ export async function POST(
         }
       });
 
-      // Aggiorna lo stato del report a IN_ATTESA_FEEDBACK_ENTE
+      // Aggiorna lo stato del report a SEGNALATO_AUTORITA
       const updatedReport = await tx.report.update({
         where: { id: reportId },
-        data: { status: 'IN_ATTESA_FEEDBACK_ENTE' }
+        data: { status: 'SEGNALATO_AUTORITA' }
       });
 
       // Crea ActionLog
@@ -147,7 +147,7 @@ export async function POST(
           actorId: session.user.id,
           meta: {
             fromStatus: report.status,
-            toStatus: 'IN_ATTESA_FEEDBACK_ENTE',
+            toStatus: 'SEGNALATO_AUTORITA',
             authority: validatedData.authority,
             protocol: validatedData.protocol,
             authorityNoticeId: authorityNotice.id,

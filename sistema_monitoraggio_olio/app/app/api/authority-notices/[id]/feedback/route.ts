@@ -52,11 +52,11 @@ export async function POST(
     }
 
     // Verifica che il report sia nello stato corretto
-    if (authorityNotice.report.status !== 'IN_ATTESA_FEEDBACK_ENTE') {
+    if (authorityNotice.report.status !== 'SEGNALATO_AUTORITA') {
       return NextResponse.json(
-        { 
+        {
           error: 'Stato del report non valido',
-          details: `Il feedback può essere registrato solo per report in stato IN_ATTESA_FEEDBACK_ENTE. Stato attuale: ${authorityNotice.report.status}`
+          details: `Il feedback può essere registrato solo per report in stato SEGNALATO_AUTORITA. Stato attuale: ${authorityNotice.report.status}`
         },
         { status: 400 }
       );
@@ -78,7 +78,7 @@ export async function POST(
       if (validatedData.closeCase) {
         updatedReport = await tx.report.update({
           where: { id: authorityNotice.reportId },
-          data: { status: 'CHIUSA' }
+          data: { status: 'CHIUSO' }
         });
 
         // Crea ActionLog per chiusura
@@ -90,7 +90,7 @@ export async function POST(
             actorId: session.user.id,
             meta: {
               fromStatus: authorityNotice.report.status,
-              toStatus: 'CHIUSA',
+              toStatus: 'CHIUSO',
               authorityNoticeId: authorityNoticeId,
               authority: authorityNotice.authority,
               protocol: authorityNotice.protocol,

@@ -7,10 +7,10 @@ import { z } from 'zod';
 // Schema di validazione per il feedback ai chiarimenti
 const clarificationFeedbackSchema = z.object({
   feedback: z.string().min(1, 'Il feedback è obbligatorio'),
-  outcome: z.enum(['CHIUSA', 'SEGNALATA_A_ENTE'], {
-    required_error: 'Specificare l\'esito (CHIUSA o SEGNALATA_A_ENTE)'
+  outcome: z.enum(['CHIUSO', 'SEGNALATO_AUTORITA'], {
+    required_error: 'Specificare l\'esito (CHIUSO o SEGNALATO_AUTORITA)'
   }),
-  authority: z.string().optional(), // Richiesto solo se outcome è SEGNALATA_A_ENTE
+  authority: z.string().optional(), // Richiesto solo se outcome è SEGNALATO_AUTORITA
   protocol: z.string().optional()
 });
 
@@ -32,12 +32,12 @@ export async function POST(
     const body = await request.json();
     const validatedData = clarificationFeedbackSchema.parse(body);
 
-    // Validazione specifica: se outcome è SEGNALATA_A_ENTE, authority è richiesto
-    if (validatedData.outcome === 'SEGNALATA_A_ENTE' && !validatedData.authority) {
+    // Validazione specifica: se outcome è SEGNALATO_AUTORITA, authority è richiesto
+    if (validatedData.outcome === 'SEGNALATO_AUTORITA' && !validatedData.authority) {
       return NextResponse.json(
-        { 
+        {
           error: 'Dati mancanti',
-          details: 'Il campo "authority" è obbligatorio quando l\'esito è SEGNALATA_A_ENTE'
+          details: 'Il campo "authority" è obbligatorio quando l\'esito è SEGNALATO_AUTORITA'
         },
         { status: 400 }
       );
@@ -67,11 +67,11 @@ export async function POST(
     }
 
     // Verifica che il report sia nello stato corretto
-    if (clarification.report.status !== 'VERIFICA_CHIARIMENTI') {
+    if (clarification.report.status !== 'RICHIESTA_CHIARIMENTI') {
       return NextResponse.json(
-        { 
+        {
           error: 'Stato del report non valido',
-          details: `Il feedback può essere fornito solo per report in stato VERIFICA_CHIARIMENTI. Stato attuale: ${clarification.report.status}`
+          details: `Il feedback può essere fornito solo per report in stato RICHIESTA_CHIARIMENTI. Stato attuale: ${clarification.report.status}`
         },
         { status: 400 }
       );
@@ -91,11 +91,11 @@ export async function POST(
       let updatedReport;
       let authorityNotice = null;
 
-      if (validatedData.outcome === 'CHIUSA') {
+      if (validatedData.outcome === 'CHIUSO') {
         // Chiudi il report
         updatedReport = await tx.report.update({
           where: { id: clarification.reportId },
-          data: { status: 'CHIUSA' }
+          data: { status: 'CHIUSO' }
         });
 
         // Crea ActionLog per chiusura
@@ -107,7 +107,7 @@ export async function POST(
             actorId: session.user.id,
             meta: {
               fromStatus: clarification.report.status,
-              toStatus: 'CHIUSA',
+              toStatus: 'CHIUSO',
               clarificationId,
               feedback: validatedData.feedback,
               outcome: validatedData.outcome
@@ -115,11 +115,11 @@ export async function POST(
           }
         });
 
-      } else if (validatedData.outcome === 'SEGNALATA_A_ENTE') {
+      } else if (validatedData.outcome === 'SEGNALATO_AUTORITA') {
         // Segnala a ente
         updatedReport = await tx.report.update({
           where: { id: clarification.reportId },
-          data: { status: 'IN_ATTESA_FEEDBACK_ENTE' }
+          data: { status: 'SEGNALATO_AUTORITA' }
         });
 
         // Crea AuthorityNotice
@@ -141,7 +141,7 @@ export async function POST(
             actorId: session.user.id,
             meta: {
               fromStatus: clarification.report.status,
-              toStatus: 'IN_ATTESA_FEEDBACK_ENTE',
+              toStatus: 'SEGNALATO_AUTORITA',
               clarificationId,
               feedback: validatedData.feedback,
               outcome: validatedData.outcome,
@@ -177,7 +177,7 @@ export async function POST(
       };
     });
 
-    const responseMessage = validatedData.outcome === 'CHIUSA'
+    const responseMessage = validatedData.outcome === 'CHIUSO'
       ? 'Feedback fornito e report chiuso con successo'
       : `Feedback fornito e report segnalato a ${validatedData.authority}`;
 

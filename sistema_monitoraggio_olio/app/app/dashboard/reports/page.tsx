@@ -83,25 +83,23 @@ interface ReportsResponse {
 
 // Status mappings
 const STATUS_LABELS = {
-  ANALISI: { label: 'In Analisi', color: 'bg-yellow-100 text-yellow-800' },
-  IN_CONTROLLO: { label: 'In Controllo', color: 'bg-blue-100 text-blue-800' },
-  VERIFICA_SOPRALLUOGO: { label: 'Verifica Sopralluogo', color: 'bg-orange-100 text-orange-800' },
-  VERIFICA_CHIARIMENTI: { label: 'Verifica Chiarimenti', color: 'bg-purple-100 text-purple-800' },
-  SEGNALATA_A_ENTE: { label: 'Segnalata a Ente', color: 'bg-red-100 text-red-800' },
-  IN_ATTESA_FEEDBACK_ENTE: { label: 'In Attesa Feedback', color: 'bg-red-100 text-red-800' },
-  CHIUSA: { label: 'Chiusa', color: 'bg-green-100 text-green-800' },
-  ARCHIVIATA: { label: 'Archiviata', color: 'bg-gray-100 text-gray-800' }
+  BOZZA: { label: 'Bozza', color: 'bg-gray-100 text-gray-800' },
+  IN_LAVORAZIONE: { label: 'In Lavorazione', color: 'bg-yellow-100 text-yellow-800' },
+  IN_VERIFICA: { label: 'In Verifica', color: 'bg-blue-100 text-blue-800' },
+  RICHIESTA_CHIARIMENTI: { label: 'Richiesta Chiarimenti', color: 'bg-purple-100 text-purple-800' },
+  SEGNALATO_AUTORITA: { label: 'Segnalato Autorità', color: 'bg-red-100 text-red-800' },
+  CHIUSO: { label: 'Chiuso', color: 'bg-green-100 text-green-800' },
+  ARCHIVIATO: { label: 'Archiviato', color: 'bg-gray-100 text-gray-800' }
 };
 
 const STATUS_ICONS = {
-  ANALISI: <Clock className="h-4 w-4" />,
-  IN_CONTROLLO: <Eye className="h-4 w-4" />,
-  VERIFICA_SOPRALLUOGO: <Activity className="h-4 w-4" />,
-  VERIFICA_CHIARIMENTI: <AlertCircle className="h-4 w-4" />,
-  SEGNALATA_A_ENTE: <FileText className="h-4 w-4" />,
-  IN_ATTESA_FEEDBACK_ENTE: <FileText className="h-4 w-4" />,
-  CHIUSA: <CheckCircle className="h-4 w-4" />,
-  ARCHIVIATA: <FileText className="h-4 w-4" />
+  BOZZA: <FileText className="h-4 w-4" />,
+  IN_LAVORAZIONE: <Clock className="h-4 w-4" />,
+  IN_VERIFICA: <Eye className="h-4 w-4" />,
+  RICHIESTA_CHIARIMENTI: <AlertCircle className="h-4 w-4" />,
+  SEGNALATO_AUTORITA: <FileText className="h-4 w-4" />,
+  CHIUSO: <CheckCircle className="h-4 w-4" />,
+  ARCHIVIATO: <FileText className="h-4 w-4" />
 };
 
 export default function ReportsPage() {

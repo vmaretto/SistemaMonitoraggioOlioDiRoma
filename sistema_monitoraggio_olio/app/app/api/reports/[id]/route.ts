@@ -6,14 +6,13 @@ import { ReportStatus } from '@prisma/client';
 
 // Mappa delle transizioni consentite secondo il workflow
 const allowedTransitions: Record<ReportStatus, ReportStatus[]> = {
-  ANALISI: ['ARCHIVIATA', 'IN_CONTROLLO'],
-  ARCHIVIATA: [], // Stato terminale
-  IN_CONTROLLO: ['VERIFICA_SOPRALLUOGO', 'VERIFICA_CHIARIMENTI', 'SEGNALATA_A_ENTE'],
-  VERIFICA_SOPRALLUOGO: ['CHIUSA', 'SEGNALATA_A_ENTE'],
-  VERIFICA_CHIARIMENTI: ['CHIUSA', 'SEGNALATA_A_ENTE'], 
-  SEGNALATA_A_ENTE: ['IN_ATTESA_FEEDBACK_ENTE'],
-  IN_ATTESA_FEEDBACK_ENTE: ['CHIUSA'],
-  CHIUSA: ['ARCHIVIATA'] // Solo archiviazione dopo chiusura
+  BOZZA: ['IN_LAVORAZIONE', 'ARCHIVIATO'],
+  IN_LAVORAZIONE: ['IN_VERIFICA', 'RICHIESTA_CHIARIMENTI', 'ARCHIVIATO'],
+  IN_VERIFICA: ['SEGNALATO_AUTORITA', 'CHIUSO', 'RICHIESTA_CHIARIMENTI', 'IN_LAVORAZIONE'],
+  RICHIESTA_CHIARIMENTI: ['IN_VERIFICA', 'SEGNALATO_AUTORITA', 'CHIUSO', 'IN_LAVORAZIONE'],
+  SEGNALATO_AUTORITA: ['CHIUSO', 'IN_VERIFICA'],
+  CHIUSO: ['ARCHIVIATO'],
+  ARCHIVIATO: [] // Stato terminale
 };
 
 // GET /api/reports/[id] - Dettaglio report completo
@@ -216,7 +215,7 @@ export async function DELETE(
 
     // Per ora implementiamo solo l'archiviazione (cambio stato)
     // Hard delete potrebbe essere pericoloso per l'audit trail
-    if (existingReport.status !== 'CHIUSA') {
+    if (existingReport.status !== 'CHIUSO') {
       return NextResponse.json(
         { error: 'Solo i report chiusi possono essere archiviati' },
         { status: 400 }
@@ -225,7 +224,7 @@ export async function DELETE(
 
     const archivedReport = await prisma.report.update({
       where: { id: reportId },
-      data: { status: 'ARCHIVIATA' }
+      data: { status: 'ARCHIVIATO' }
     });
 
     // Log dell'archiviazione

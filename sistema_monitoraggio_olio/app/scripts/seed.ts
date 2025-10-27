@@ -526,14 +526,14 @@ async function main() {
       title: 'Segnalazione uso improprio marchio DOP',
       description: 'Rilevato prodotto con etichetta che rivendica falsamente denominazione DOP Sabina. Richiede analisi approfondita e verifica documenti produttore.',
       createdById: analystUser.id,
-      status: 'ANALISI'
+      status: 'IN_LAVORAZIONE'
     }
   });
 
   await prisma.actionLog.create({
     data: {
       reportId: report1.id,
-      type: 'ANALISI_AVVIATA',
+      type: 'LAVORAZIONE_AVVIATA',
       message: 'Segnalazione ricevuta e assegnata per analisi preliminare',
       actorId: analystUser.id,
       meta: {
@@ -549,7 +549,7 @@ async function main() {
       title: 'Contraffazione etichetta IGP Lazio',
       description: 'Prodotto commercializzato con etichetta IGP contraffatta. Elementi grafici copiati ma produttore non autorizzato. Richiesto intervento ispettivo.',
       createdById: analystUser.id,
-      status: 'IN_CONTROLLO'
+      status: 'IN_VERIFICA'
     }
   });
 
@@ -557,7 +557,7 @@ async function main() {
     data: [
       {
         reportId: report2.id,
-        type: 'ANALISI_AVVIATA',
+        type: 'LAVORAZIONE_AVVIATA',
         message: 'Segnalazione ricevuta e assegnata per analisi preliminare',
         actorId: analystUser.id,
         createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) // 5 giorni fa
@@ -582,7 +582,7 @@ async function main() {
       title: 'Verifica frantoio produttore DOP Sabina',
       description: 'Controllo conformità processo produttivo e documentazione per rinnovo autorizzazione DOP.',
       createdById: inspectorUser.id,
-      status: 'VERIFICA_SOPRALLUOGO'
+      status: 'IN_VERIFICA'
     }
   });
 
@@ -622,7 +622,7 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
     data: [
       {
         reportId: report3.id,
-        type: 'ANALISI_AVVIATA',
+        type: 'LAVORAZIONE_AVVIATA',
         message: 'Richiesta verifica periodica frantoio autorizzato DOP',
         actorId: inspectorUser.id,
         createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // 7 giorni fa
@@ -655,7 +655,7 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
       title: 'Vendita olio contraffatto mercato Roma',
       description: 'Rilevata vendita di olio con etichetta DOP Sabina contraffatta presso mercato rionale. Necessario intervento autorità competenti.',
       createdById: inspectorUser.id,
-      status: 'IN_ATTESA_FEEDBACK_ENTE'
+      status: 'SEGNALATO_AUTORITA'
     }
   });
 
@@ -673,7 +673,7 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
     data: [
       {
         reportId: report4.id,
-        type: 'ANALISI_AVVIATA',
+        type: 'LAVORAZIONE_AVVIATA',
         message: 'Segnalazione contraffazione ricevuta da cittadino',
         actorId: analystUser.id,
         createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) // 10 giorni fa
@@ -706,7 +706,7 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
       title: 'Chiarimenti su etichettatura olio biologico',
       description: 'Richiesta chiarimenti su conformità etichetta olio biologico con dicitura aggiuntiva non standard.',
       createdById: analystUser.id,
-      status: 'CHIUSA'
+      status: 'CHIUSO'
     }
   });
 
@@ -718,7 +718,7 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
       dueAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 giorni fa
       feedbackAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 giorni fa
       feedback: 'La dicitura è consentita purché sia verificabile e documentata la temperatura di estrazione. Richiesto certificato del processo produttivo.',
-      outcome: 'CHIUSA',
+      outcome: 'CHIUSO',
       requestedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000) // 15 giorni fa
     }
   });
@@ -727,7 +727,7 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
     data: [
       {
         reportId: report5.id,
-        type: 'ANALISI_AVVIATA',
+        type: 'LAVORAZIONE_AVVIATA',
         message: 'Richiesta chiarimenti su conformità etichettatura biologica',
         actorId: analystUser.id,
         createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000) // 15 giorni fa
@@ -819,11 +819,11 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
 - Test: john@doe.com / johndoe123
 
 📋 STATI REPORT DEMO:
-- Report 1: ANALISI (segnalazione DOP)
-- Report 2: IN_CONTROLLO (contraffazione IGP)
-- Report 3: VERIFICA_SOPRALLUOGO (frantoio con verbale)
-- Report 4: IN_ATTESA_FEEDBACK_ENTE (segnalato ICQRF)
-- Report 5: CHIUSA (chiarimenti completati)
+- Report 1: IN_LAVORAZIONE (segnalazione DOP)
+- Report 2: IN_VERIFICA (contraffazione IGP)
+- Report 3: IN_VERIFICA (frantoio con verbale)
+- Report 4: SEGNALATO_AUTORITA (segnalato ICQRF)
+- Report 5: CHIUSO (chiarimenti completati)
   `);
 }
 

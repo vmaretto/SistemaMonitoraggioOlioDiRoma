@@ -49,11 +49,11 @@ export async function POST(
     }
 
     // Verifica che il report sia nello stato corretto
-    if (report.status !== 'VERIFICA_SOPRALLUOGO') {
+    if (report.status !== 'IN_VERIFICA') {
       return NextResponse.json(
-        { 
+        {
           error: 'Stato del report non valido',
-          details: `La segnalazione a ente da sopralluogo è consentita solo per report in stato VERIFICA_SOPRALLUOGO. Stato attuale: ${report.status}`
+          details: `La segnalazione a ente da sopralluogo è consentita solo per report in stato IN_VERIFICA. Stato attuale: ${report.status}`
         },
         { status: 400 }
       );
@@ -93,7 +93,7 @@ export async function POST(
       // Aggiorna lo stato del report
       const updatedReport = await tx.report.update({
         where: { id: reportId },
-        data: { status: 'IN_ATTESA_FEEDBACK_ENTE' }
+        data: { status: 'SEGNALATO_AUTORITA' }
       });
 
       // Crea AuthorityNotice
@@ -115,7 +115,7 @@ export async function POST(
           actorId: session.user.id,
           meta: {
             fromStatus: report.status,
-            toStatus: 'IN_ATTESA_FEEDBACK_ENTE',
+            toStatus: 'SEGNALATO_AUTORITA',
             authority: validatedData.authority,
             protocol: validatedData.protocol,
             authorityNoticeId: authorityNotice.id,

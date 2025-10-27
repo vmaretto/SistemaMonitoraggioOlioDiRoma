@@ -95,12 +95,12 @@ export async function POST(
     }
 
     // Verifica che il report sia in uno stato che permette sopralluoghi
-    const allowedStatuses = ['IN_CONTROLLO', 'VERIFICA_SOPRALLUOGO'];
+    const allowedStatuses = ['IN_LAVORAZIONE', 'IN_VERIFICA'];
     if (!allowedStatuses.includes(report.status)) {
       return NextResponse.json(
-        { 
+        {
           error: 'Stato del report non valido',
-          details: `I sopralluoghi sono consentiti solo per report in stato IN_CONTROLLO o VERIFICA_SOPRALLUOGO. Stato attuale: ${report.status}`
+          details: `I sopralluoghi sono consentiti solo per report in stato IN_LAVORAZIONE o IN_VERIFICA. Stato attuale: ${report.status}`
         },
         { status: 400 }
       );
@@ -122,11 +122,11 @@ export async function POST(
         }
       });
 
-      // Se il report non era già in VERIFICA_SOPRALLUOGO, portalo in quello stato
-      if (report.status !== 'VERIFICA_SOPRALLUOGO') {
+      // Se il report non era già in IN_VERIFICA, portalo in quello stato
+      if (report.status !== 'IN_VERIFICA') {
         await tx.report.update({
           where: { id: reportId },
-          data: { status: 'VERIFICA_SOPRALLUOGO' }
+          data: { status: 'IN_VERIFICA' }
         });
       }
 

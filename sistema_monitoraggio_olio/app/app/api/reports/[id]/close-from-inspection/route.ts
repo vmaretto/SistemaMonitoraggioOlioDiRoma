@@ -46,11 +46,11 @@ export async function POST(
     }
 
     // Verifica che il report sia nello stato corretto
-    if (report.status !== 'VERIFICA_SOPRALLUOGO') {
+    if (report.status !== 'IN_VERIFICA') {
       return NextResponse.json(
-        { 
+        {
           error: 'Stato del report non valido',
-          details: `La chiusura da sopralluogo è consentita solo per report in stato VERIFICA_SOPRALLUOGO. Stato attuale: ${report.status}`
+          details: `La chiusura da sopralluogo è consentita solo per report in stato IN_VERIFICA. Stato attuale: ${report.status}`
         },
         { status: 400 }
       );
@@ -87,10 +87,10 @@ export async function POST(
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      // Aggiorna lo stato del report a CHIUSA
+      // Aggiorna lo stato del report a CHIUSO
       const updatedReport = await tx.report.update({
         where: { id: reportId },
-        data: { status: 'CHIUSA' }
+        data: { status: 'CHIUSO' }
       });
 
       // Crea ActionLog per la chiusura
@@ -102,7 +102,7 @@ export async function POST(
           actorId: session.user.id,
           meta: {
             fromStatus: report.status,
-            toStatus: 'CHIUSA',
+            toStatus: 'CHIUSO',
             referencedInspectionId: referencedInspection.id,
             inspectionDate: referencedInspection.date,
             inspectionLocation: referencedInspection.location,

@@ -14,16 +14,7 @@ const transitionBaseSchema = z.object({
     'RICHIESTA_CHIARIMENTI',
     'SEGNALATO_AUTORITA',
     'CHIUSO',
-    'ARCHIVIATO',
-    // Stati legacy per compatibilità
-    'ANALISI',
-    'ARCHIVIATA',
-    'IN_CONTROLLO',
-    'VERIFICA_SOPRALLUOGO',
-    'VERIFICA_CHIARIMENTI',
-    'SEGNALATA_A_ENTE',
-    'IN_ATTESA_FEEDBACK_ENTE',
-    'CHIUSA'
+    'ARCHIVIATO'
   ]),
   motivo: z.string().min(1, 'Motivo obbligatorio'),
   note: z.string().optional(),
@@ -75,17 +66,7 @@ const allowedTransitions: Record<string, string[]> = {
   RICHIESTA_CHIARIMENTI: ['IN_LAVORAZIONE', 'SEGNALATO_AUTORITA', 'CHIUSO'],
   SEGNALATO_AUTORITA: ['IN_LAVORAZIONE', 'CHIUSO'],
   CHIUSO: ['ARCHIVIATO'],
-  ARCHIVIATO: [],
-
-  // Stati legacy mappati ai nuovi
-  ANALISI: ['IN_LAVORAZIONE', 'ARCHIVIATO'],
-  IN_CONTROLLO: ['IN_VERIFICA', 'RICHIESTA_CHIARIMENTI', 'SEGNALATO_AUTORITA', 'CHIUSO'],
-  VERIFICA_SOPRALLUOGO: ['IN_VERIFICA'],
-  VERIFICA_CHIARIMENTI: ['RICHIESTA_CHIARIMENTI'],
-  SEGNALATA_A_ENTE: ['SEGNALATO_AUTORITA'],
-  IN_ATTESA_FEEDBACK_ENTE: ['SEGNALATO_AUTORITA'],
-  CHIUSA: ['CHIUSO'],
-  ARCHIVIATA: ['ARCHIVIATO']
+  ARCHIVIATO: []
 };
 
 // POST /api/reports/[id]/transition - Applica transizione di stato

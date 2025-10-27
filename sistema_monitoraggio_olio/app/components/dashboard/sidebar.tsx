@@ -95,12 +95,12 @@ const sidebarItems = [
       },
       {
         title: 'In Verifica',
-        href: '/dashboard/reports?status=IN_CONTROLLO',
+        href: '/dashboard/reports?status=IN_VERIFICA',
         icon: Eye,
       },
       {
         title: 'Completati',
-        href: '/dashboard/reports?status=CHIUSA',
+        href: '/dashboard/reports?status=CHIUSO',
         icon: CheckCircle,
       },
     ],

@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
         title: validatedData.title,
         description: validatedData.description,
         createdById,
-        status: 'ANALISI' // Stato iniziale
+        status: 'IN_LAVORAZIONE' // Stato iniziale
       },
       include: {
         actions: true,
@@ -144,12 +144,12 @@ export async function POST(request: NextRequest) {
     await prisma.actionLog.create({
       data: {
         reportId: report.id,
-        type: 'ANALISI_AVVIATA',
-        message: 'Nuovo report creato e assegnato per analisi preliminare',
+        type: 'LAVORAZIONE_AVVIATA',
+        message: 'Nuovo report creato e messo in lavorazione',
         actorId: session.user.id,
         meta: {
           source: 'Creazione manuale',
-          initialStatus: 'ANALISI'
+          initialStatus: 'IN_LAVORAZIONE'
         }
       }
     });

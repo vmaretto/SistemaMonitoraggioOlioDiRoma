@@ -93,12 +93,12 @@ export async function POST(
     }
 
     // Verifica che il report sia in uno stato che permette richieste di chiarimenti
-    const allowedStatuses = ['IN_CONTROLLO', 'VERIFICA_CHIARIMENTI'];
+    const allowedStatuses = ['IN_LAVORAZIONE', 'IN_VERIFICA', 'RICHIESTA_CHIARIMENTI'];
     if (!allowedStatuses.includes(report.status)) {
       return NextResponse.json(
-        { 
+        {
           error: 'Stato del report non valido',
-          details: `Le richieste di chiarimenti sono consentite solo per report in stato IN_CONTROLLO o VERIFICA_CHIARIMENTI. Stato attuale: ${report.status}`
+          details: `Le richieste di chiarimenti sono consentite solo per report in stato IN_LAVORAZIONE, IN_VERIFICA o RICHIESTA_CHIARIMENTI. Stato attuale: ${report.status}`
         },
         { status: 400 }
       );
@@ -115,16 +115,16 @@ export async function POST(
         }
       });
 
-      // Se il report non era già in VERIFICA_CHIARIMENTI, portalo in quello stato
-      if (report.status !== 'VERIFICA_CHIARIMENTI') {
+      // Se il report non era già in RICHIESTA_CHIARIMENTI, portalo in quello stato
+      if (report.status !== 'RICHIESTA_CHIARIMENTI') {
         await tx.report.update({
           where: { id: reportId },
-          data: { status: 'VERIFICA_CHIARIMENTI' }
+          data: { status: 'RICHIESTA_CHIARIMENTI' }
         });
       }
 
       // Crea ActionLog
-      const dueAtFormatted = validatedData.dueAt 
+      const dueAtFormatted = validatedData.dueAt
         ? new Date(validatedData.dueAt).toLocaleDateString('it-IT')
         : 'non specificata';
 
@@ -139,7 +139,7 @@ export async function POST(
             question: validatedData.question,
             dueAt: validatedData.dueAt,
             fromStatus: report.status,
-            toStatus: 'VERIFICA_CHIARIMENTI'
+            toStatus: 'RICHIESTA_CHIARIMENTI'
           }
         }
       });
