@@ -304,6 +304,11 @@ export default function ReportDetailPage() {
   // Handle clarification request legacy
   const handleCreateClarification = async () => {
     try {
+      if (!clarificationForm.question || clarificationForm.question.trim() === '') {
+        alert('Per favore inserisci una domanda per la richiesta di chiarimenti');
+        return;
+      }
+
       const response = await fetch(`/api/reports/${reportId}/clarifications`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -314,18 +319,26 @@ export default function ReportDetailPage() {
         setIsClarificationDialogOpen(false);
         setClarificationForm({ question: '', dueAt: '' });
         loadReportDetail();
+        alert('Richiesta chiarimenti inviata con successo');
       } else {
         const error = await response.json();
         console.error('Errore richiesta chiarimenti:', error);
+        alert(`Errore: ${error.error || 'Impossibile inviare la richiesta'}\n${error.details || ''}`);
       }
     } catch (error) {
       console.error('Errore richiesta chiarimenti:', error);
+      alert('Errore di connessione. Riprova più tardi.');
     }
   };
 
   // Handle authority notice legacy
   const handleCreateAuthorityNotice = async () => {
     try {
+      if (!authorityForm.authority || authorityForm.authority.trim() === '') {
+        alert('Per favore inserisci il nome dell\'ente/autorità');
+        return;
+      }
+
       const response = await fetch(`/api/reports/${reportId}/authority-notices`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -336,12 +349,15 @@ export default function ReportDetailPage() {
         setIsAuthorityDialogOpen(false);
         setAuthorityForm({ authority: '', protocol: '', note: '' });
         loadReportDetail();
+        alert('Segnalazione all\'ente inviata con successo');
       } else {
         const error = await response.json();
         console.error('Errore segnalazione ente:', error);
+        alert(`Errore: ${error.error || 'Impossibile inviare la segnalazione'}\n${error.details || ''}`);
       }
     } catch (error) {
       console.error('Errore segnalazione ente:', error);
+      alert('Errore di connessione. Riprova più tardi.');
     }
   };
 
