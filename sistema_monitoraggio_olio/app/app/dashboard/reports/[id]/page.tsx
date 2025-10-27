@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { 
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -20,7 +20,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -38,7 +38,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { 
+import {
   ArrowLeft,
   Calendar,
   User,
@@ -61,6 +61,10 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
+
+// Import dei componenti migliorati
+import { AttachmentManager, AttachmentFile } from '@/components/reports/attachment-manager';
+import { StateTransitionDialog, StateTransitionData } from '@/components/reports/state-transition-dialog';
 
 // Types
 interface Report {
@@ -118,9 +122,13 @@ interface AuthorityNotice {
 interface Attachment {
   id: string;
   filename: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
   url: string;
-  entityType: string;
-  entityId: string;
+  tipo?: string;
+  descrizione?: string;
+  tags?: string[];
   uploadedAt: string;
   uploadedBy: string;
 }
@@ -136,7 +144,17 @@ interface ReportDetail {
 }
 
 // Status configuration
-const STATUS_LABELS = {
+const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  // Nuovi stati
+  BOZZA: { label: 'Bozza', color: 'bg-gray-100 text-gray-800' },
+  IN_LAVORAZIONE: { label: 'In Lavorazione', color: 'bg-blue-100 text-blue-800' },
+  IN_VERIFICA: { label: 'In Verifica', color: 'bg-orange-100 text-orange-800' },
+  RICHIESTA_CHIARIMENTI: { label: 'Richiesta Chiarimenti', color: 'bg-purple-100 text-purple-800' },
+  SEGNALATO_AUTORITA: { label: 'Segnalato ad Autorità', color: 'bg-red-100 text-red-800' },
+  CHIUSO: { label: 'Chiuso', color: 'bg-green-100 text-green-800' },
+  ARCHIVIATO: { label: 'Archiviato', color: 'bg-gray-100 text-gray-800' },
+
+  // Stati legacy
   ANALISI: { label: 'In Analisi', color: 'bg-yellow-100 text-yellow-800' },
   IN_CONTROLLO: { label: 'In Controllo', color: 'bg-blue-100 text-blue-800' },
   VERIFICA_SOPRALLUOGO: { label: 'Verifica Sopralluogo', color: 'bg-orange-100 text-orange-800' },
@@ -150,6 +168,7 @@ const STATUS_LABELS = {
 const ACTION_TYPE_LABELS = {
   'CREAZIONE': 'Report creato',
   'TRANSIZIONE': 'Cambio stato',
+  'TRANSIZIONE_STATO': 'Cambio stato',
   'SOPRALLUOGO': 'Sopralluogo registrato',
   'RICHIESTA_CHIARIMENTI': 'Chiarimenti richiesti',
   'FEEDBACK_CHIARIMENTI': 'Feedback ricevuto',
@@ -157,7 +176,8 @@ const ACTION_TYPE_LABELS = {
   'FEEDBACK_ENTE': 'Feedback ente',
   'CHIUSURA': 'Report chiuso',
   'ALLEGATO_AGGIUNTO': 'Allegato aggiunto',
-  'ALLEGATO_RIMOSSO': 'Allegato rimosso'
+  'ALLEGATO_RIMOSSO': 'Allegato rimosso',
+  'ALLEGATO_MODIFICATO': 'Allegato modificato'
 };
 
 export default function ReportDetailPage() {
@@ -165,20 +185,25 @@ export default function ReportDetailPage() {
   const params = useParams();
   const router = useRouter();
   const reportId = params.id as string;
-  
+
   // States
   const [reportDetail, setReportDetail] = useState<ReportDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('timeline');
-  
-  // Dialog states
+
+  // State transition dialog
   const [isTransitionDialogOpen, setIsTransitionDialogOpen] = useState(false);
+  const [targetTransitionStatus, setTargetTransitionStatus] = useState<string | null>(null);
+
+  // Attachments
+  const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
+
+  // Dialog states per vecchie funzionalità legacy
   const [isInspectionDialogOpen, setIsInspectionDialogOpen] = useState(false);
   const [isClarificationDialogOpen, setIsClarificationDialogOpen] = useState(false);
   const [isAuthorityDialogOpen, setIsAuthorityDialogOpen] = useState(false);
-  
-  // Form states
-  const [transitionForm, setTransitionForm] = useState({ to: '', note: '' });
+
+  // Form states legacy
   const [inspectionForm, setInspectionForm] = useState({
     date: '',
     location: '',
@@ -201,9 +226,25 @@ export default function ReportDetailPage() {
       setLoading(true);
       const response = await fetch(`/api/reports/${reportId}`);
       const data = await response.json();
-      
+
       if (response.ok) {
         setReportDetail(data);
+
+        // Converti gli allegati nel formato atteso da AttachmentManager
+        const convertedAttachments: AttachmentFile[] = (data.attachments || []).map((att: Attachment) => ({
+          id: att.id,
+          filename: att.filename,
+          originalName: att.originalName || att.filename,
+          mimeType: att.mimeType || 'application/octet-stream',
+          size: att.size || 0,
+          url: att.url,
+          tipo: att.tipo,
+          descrizione: att.descrizione,
+          tags: att.tags,
+          uploadedAt: new Date(att.uploadedAt),
+          uploadedBy: att.uploadedBy
+        }));
+        setAttachments(convertedAttachments);
       } else {
         console.error('Errore caricamento dettaglio report:', (data as any).error);
       }
@@ -214,29 +255,42 @@ export default function ReportDetailPage() {
     }
   };
 
-  // Handle state transition
-  const handleTransition = async () => {
+  // Handle state transition con nuovo componente
+  const handleStateTransition = async (data: StateTransitionData) => {
+    if (!targetTransitionStatus) return;
+
     try {
       const response = await fetch(`/api/reports/${reportId}/transition`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(transitionForm),
+        body: JSON.stringify({
+          targetStatus: targetTransitionStatus,
+          ...data
+        }),
       });
 
       if (response.ok) {
         setIsTransitionDialogOpen(false);
-        setTransitionForm({ to: '', note: '' });
-        loadReportDetail();
+        setTargetTransitionStatus(null);
+        await loadReportDetail();
       } else {
         const error = await response.json();
         console.error('Errore transizione:', error);
+        alert(`Errore: ${error.error || 'Transizione fallita'}`);
       }
     } catch (error) {
       console.error('Errore transizione:', error);
+      alert('Errore durante la transizione di stato');
     }
   };
 
-  // Handle new inspection
+  // Open transition dialog per uno stato specifico
+  const openTransitionDialog = (targetStatus: string) => {
+    setTargetTransitionStatus(targetStatus);
+    setIsTransitionDialogOpen(true);
+  };
+
+  // Handle new inspection legacy
   const handleCreateInspection = async () => {
     try {
       const response = await fetch(`/api/reports/${reportId}/inspections`, {
@@ -258,7 +312,7 @@ export default function ReportDetailPage() {
     }
   };
 
-  // Handle clarification request
+  // Handle clarification request legacy
   const handleCreateClarification = async () => {
     try {
       const response = await fetch(`/api/reports/${reportId}/clarifications`, {
@@ -280,7 +334,7 @@ export default function ReportDetailPage() {
     }
   };
 
-  // Handle authority notice
+  // Handle authority notice legacy
   const handleCreateAuthorityNotice = async () => {
     try {
       const response = await fetch(`/api/reports/${reportId}/authority-notices`, {
@@ -300,6 +354,13 @@ export default function ReportDetailPage() {
     } catch (error) {
       console.error('Errore segnalazione ente:', error);
     }
+  };
+
+  // Handle attachments change
+  const handleAttachmentsChange = (newAttachments: AttachmentFile[]) => {
+    setAttachments(newAttachments);
+    // Ricarica i dettagli per aggiornare il count
+    loadReportDetail();
   };
 
   // Format date
@@ -341,8 +402,8 @@ export default function ReportDetailPage() {
     );
   }
 
-  const { report, actionLogs, inspections, clarificationRequests, authorityNotices, attachments, availableTransitions } = reportDetail;
-  const statusConfig = STATUS_LABELS[report.status as keyof typeof STATUS_LABELS];
+  const { report, actionLogs, inspections, clarificationRequests, authorityNotices, availableTransitions } = reportDetail;
+  const statusConfig = STATUS_LABELS[report.status] || { label: report.status, color: 'bg-gray-100 text-gray-800' };
 
   return (
     <div className="space-y-6">
@@ -363,65 +424,25 @@ export default function ReportDetailPage() {
             <p className="text-gray-600">{report.description}</p>
           </div>
         </div>
-        
+
         <div className="flex items-center space-x-3">
           <Badge className={statusConfig.color}>
             {statusConfig.label}
           </Badge>
-          
-          {availableTransitions.length > 0 && (
-            <Dialog open={isTransitionDialogOpen} onOpenChange={setIsTransitionDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Cambia Stato
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Cambia Stato Report</DialogTitle>
-                  <DialogDescription>
-                    Seleziona il nuovo stato e aggiungi eventuali note.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div>
-                    <Label>Nuovo Stato</Label>
-                    <Select value={transitionForm.to} onValueChange={(value) => setTransitionForm({ ...transitionForm, to: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona nuovo stato" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableTransitions.map((status) => (
-                          <SelectItem key={status} value={status}>
-                            {STATUS_LABELS[status as keyof typeof STATUS_LABELS]?.label || status}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Note</Label>
-                    <Textarea
-                      value={transitionForm.note}
-                      onChange={(e) => setTransitionForm({ ...transitionForm, note: e.target.value })}
-                      placeholder="Motivazione del cambio stato..."
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsTransitionDialogOpen(false)}>
-                    Annulla
-                  </Button>
-                  <Button 
-                    onClick={handleTransition}
-                    disabled={!transitionForm.to}
-                  >
-                    Conferma Transizione
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+
+          {availableTransitions && availableTransitions.length > 0 && (
+            <Select onValueChange={openTransitionDialog}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Cambia Stato" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableTransitions.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {STATUS_LABELS[status]?.label || status}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
         </div>
       </div>
@@ -477,7 +498,7 @@ export default function ReportDetailPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Allegati</p>
-                <p className="text-xl font-bold">{report._count.attachments}</p>
+                <p className="text-xl font-bold">{attachments.length}</p>
               </div>
               <Paperclip className="h-5 w-5 text-gray-600" />
             </div>
@@ -870,56 +891,40 @@ export default function ReportDetailPage() {
           </Card>
         </TabsContent>
 
-        {/* Attachments Tab */}
+        {/* Attachments Tab - INTEGRATO CON AttachmentManager */}
         <TabsContent value="attachments">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Allegati</CardTitle>
-                <CardDescription>
-                  Documenti e file allegati a questo report
-                </CardDescription>
-              </div>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Aggiungi Allegato
-              </Button>
+            <CardHeader>
+              <CardTitle>Allegati</CardTitle>
+              <CardDescription>
+                Documenti e file allegati a questo report. Carica nuovi file tramite drag & drop o seleziona manualmente.
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              {attachments.length === 0 ? (
-                <div className="text-center py-8">
-                  <Paperclip className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-600">Nessun allegato</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {attachments.map((attachment) => (
-                    <div key={attachment.id} className="flex items-center justify-between p-3 border rounded">
-                      <div className="flex items-center space-x-3">
-                        <Paperclip className="h-4 w-4 text-gray-600" />
-                        <div>
-                          <p className="text-sm font-medium">{attachment.filename}</p>
-                          <p className="text-xs text-gray-500">
-                            Caricato il {formatDate(attachment.uploadedAt)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button variant="ghost" size="sm">
-                          <Download className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <AttachmentManager
+                reportId={reportId}
+                context="report"
+                attachments={attachments}
+                onAttachmentsChange={handleAttachmentsChange}
+                maxFileSize={10}
+                acceptedFileTypes={['image/*', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']}
+              />
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* State Transition Dialog - INTEGRATO CON StateTransitionDialog */}
+      {targetTransitionStatus && (
+        <StateTransitionDialog
+          open={isTransitionDialogOpen}
+          onOpenChange={setIsTransitionDialogOpen}
+          reportId={reportId}
+          currentStatus={report.status}
+          targetStatus={targetTransitionStatus}
+          onConfirm={handleStateTransition}
+        />
+      )}
     </div>
   );
 }
