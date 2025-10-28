@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import PDFDocument from 'pdfkit';
+import { jsPDF } from 'jspdf';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 
@@ -11,7 +11,7 @@ const STATUS_LABELS: Record<string, string> = {
   IN_LAVORAZIONE: 'In Lavorazione',
   IN_VERIFICA: 'In Verifica',
   RICHIESTA_CHIARIMENTI: 'Richiesta Chiarimenti',
-  SEGNALATO_AUTORITA: 'Segnalato ad Autorità',
+  SEGNALATO_AUTORITA: 'Segnalato ad Autorita',
   CHIUSO: 'Chiuso',
   ARCHIVIATO: 'Archiviato'
 };
@@ -92,307 +92,266 @@ export async function GET(
       return NextResponse.json({ error: 'Report non trovato' }, { status: 404 });
     }
 
-    // Crea il PDF
-    const doc = new PDFDocument({
-      size: 'A4',
-      margins: { top: 50, bottom: 50, left: 50, right: 50 },
-      info: {
-        Title: `Report - ${report.title}`,
-        Author: 'Sistema Monitoraggio Olio',
-        Subject: `Report ID: ${report.id}`,
-        CreationDate: new Date()
+    // Crea il PDF con jsPDF
+    const doc = new jsPDF();
+    let yPos = 20;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    const maxWidth = pageWidth - (margin * 2);
+
+    // Helper per aggiungere testo con wrap e gestione pagine
+    const addText = (text: string, fontSize: number = 10, isBold: boolean = false, indent: number = 0) => {
+      if (yPos > pageHeight - 20) {
+        doc.addPage();
+        yPos = 20;
       }
-    });
+      doc.setFontSize(fontSize);
+      doc.setFont('helvetica', isBold ? 'bold' : 'normal');
 
-    const chunks: Buffer[] = [];
-    doc.on('data', (chunk) => chunks.push(chunk));
+      const lines = doc.splitTextToSize(text, maxWidth - indent);
+      lines.forEach((line: string) => {
+        if (yPos > pageHeight - 20) {
+          doc.addPage();
+          yPos = 20;
+        }
+        doc.text(line, margin + indent, yPos);
+        yPos += fontSize * 0.5;
+      });
+    };
 
-    // Header del documento
-    doc.fontSize(20).font('Helvetica-Bold').text('REPORT COMPLETO', { align: 'center' });
-    doc.moveDown();
+    const addSpace = (size: number = 5) => {
+      yPos += size;
+    };
+
+    const addSeparator = () => {
+      if (yPos > pageHeight - 20) {
+        doc.addPage();
+        yPos = 20;
+      }
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 5;
+    };
+
+    // Header
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('REPORT COMPLETO', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 15;
 
     // Informazioni generali
-    doc.fontSize(16).font('Helvetica-Bold').text('Informazioni Generali');
-    doc.moveDown(0.5);
+    addText('Informazioni Generali', 16, true);
+    addSpace();
 
-    doc.fontSize(12).font('Helvetica-Bold').text('Titolo: ', { continued: true });
-    doc.font('Helvetica').text(report.title);
-
-    doc.font('Helvetica-Bold').text('ID: ', { continued: true });
-    doc.font('Helvetica').text(report.id);
-
-    doc.font('Helvetica-Bold').text('Stato: ', { continued: true });
-    doc.font('Helvetica').text(STATUS_LABELS[report.status] || report.status);
-
-    doc.font('Helvetica-Bold').text('Data Creazione: ', { continued: true });
-    doc.font('Helvetica').text(formatDate(report.createdAt.toISOString()));
-
-    doc.font('Helvetica-Bold').text('Ultimo Aggiornamento: ', { continued: true });
-    doc.font('Helvetica').text(formatDate(report.updatedAt.toISOString()));
+    addText(`Titolo: ${report.title}`, 12, false);
+    addText(`ID: ${report.id}`, 10, false);
+    addText(`Stato: ${STATUS_LABELS[report.status] || report.status}`, 10, false);
+    addText(`Data Creazione: ${formatDate(report.createdAt.toISOString())}`, 10, false);
+    addText(`Ultimo Aggiornamento: ${formatDate(report.updatedAt.toISOString())}`, 10, false);
 
     if (report.description) {
-      doc.moveDown(0.5);
-      doc.font('Helvetica-Bold').text('Descrizione:');
-      doc.font('Helvetica').text(report.description, { align: 'justify' });
+      addSpace();
+      addText('Descrizione:', 10, true);
+      addText(report.description, 10, false);
     }
 
-    doc.moveDown(1.5);
+    addSpace(10);
 
-    // Timeline delle azioni
+    // Timeline
     if (report.actions.length > 0) {
-      doc.fontSize(16).font('Helvetica-Bold').text('Timeline Attività');
-      doc.moveDown(0.5);
+      addText('Timeline Attivita', 16, true);
+      addSpace();
 
-      report.actions.forEach((log, index) => {
+      report.actions.forEach((log) => {
         const actionLabel = ACTION_TYPE_LABELS[log.type] || log.type;
-
-        doc.fontSize(11).font('Helvetica-Bold')
-          .text(`${formatDate(log.createdAt.toISOString())} - ${actionLabel}`, { continued: false });
-
-        doc.fontSize(10).font('Helvetica')
-          .text(log.message, { indent: 20, align: 'justify' });
-
-        if (index < report.actions.length - 1) {
-          doc.moveDown(0.5);
-        }
+        addText(`${formatDate(log.createdAt.toISOString())} - ${actionLabel}`, 11, true);
+        addText(log.message, 10, false, 10);
+        addSpace(3);
       });
 
-      doc.moveDown(1.5);
+      addSpace(10);
     }
 
     // Sopralluoghi
     if (report.inspections.length > 0) {
       doc.addPage();
-      doc.fontSize(16).font('Helvetica-Bold').text('Sopralluoghi');
-      doc.moveDown(0.5);
+      yPos = 20;
+
+      addText('Sopralluoghi', 16, true);
+      addSpace();
 
       report.inspections.forEach((inspection, index) => {
-        doc.fontSize(12).font('Helvetica-Bold')
-          .text(`Sopralluogo #${index + 1}`, { underline: true });
-        doc.moveDown(0.3);
-
-        doc.fontSize(11).font('Helvetica-Bold').text('Data: ', { continued: true });
-        doc.font('Helvetica').text(formatDate(inspection.date.toISOString()));
+        addText(`Sopralluogo #${index + 1}`, 12, true);
+        addText(`Data: ${formatDate(inspection.date.toISOString())}`, 11, false);
 
         if (inspection.location) {
-          doc.font('Helvetica-Bold').text('Località: ', { continued: true });
-          doc.font('Helvetica').text(inspection.location);
+          addText(`Localita: ${inspection.location}`, 11, false);
         }
 
         if (inspection.minutesText) {
-          doc.moveDown(0.3);
-          doc.font('Helvetica-Bold').text('Verbale:');
-          doc.font('Helvetica').text(inspection.minutesText, { align: 'justify' });
+          addText('Verbale:', 11, true);
+          addText(inspection.minutesText, 10, false);
         }
 
         if (inspection.outcome) {
-          doc.moveDown(0.3);
-          doc.font('Helvetica-Bold').text('Esito: ', { continued: true });
-          doc.font('Helvetica').text(inspection.outcome);
+          addText(`Esito: ${inspection.outcome}`, 11, false);
         }
 
         if (inspection.attachments && inspection.attachments.length > 0) {
-          doc.moveDown(0.3);
-          doc.font('Helvetica-Bold').text(`Allegati (${inspection.attachments.length}):`);
+          addText(`Allegati (${inspection.attachments.length}):`, 11, true);
           inspection.attachments.forEach((att) => {
-            doc.fontSize(9).font('Helvetica').fillColor('#666666')
-              .text(`  - ${att.originalName || att.filename}`, { indent: 10 });
+            addText(`- ${att.originalName || att.filename}`, 9, false, 10);
           });
-          doc.fillColor('#000000').fontSize(11);
         }
 
         if (index < report.inspections.length - 1) {
-          doc.moveDown(1);
-          doc.strokeColor('#cccccc').lineWidth(0.5)
-            .moveTo(doc.x, doc.y)
-            .lineTo(doc.page.width - 100, doc.y)
-            .stroke();
-          doc.moveDown(1);
+          addSpace(5);
+          addSeparator();
+          addSpace(5);
         }
       });
 
-      doc.moveDown(1.5);
+      addSpace(10);
     }
 
-    // Richieste di chiarimenti
+    // Chiarimenti
     if (report.clarifications.length > 0) {
       doc.addPage();
-      doc.fontSize(16).font('Helvetica-Bold').text('Richieste di Chiarimenti');
-      doc.moveDown(0.5);
+      yPos = 20;
+
+      addText('Richieste di Chiarimenti', 16, true);
+      addSpace();
 
       report.clarifications.forEach((clarification, index) => {
-        doc.fontSize(12).font('Helvetica-Bold')
-          .text(`Richiesta #${index + 1}`, { underline: true });
-        doc.moveDown(0.3);
-
-        doc.fontSize(11).font('Helvetica-Bold').text('Data Richiesta: ', { continued: true });
-        doc.font('Helvetica').text(formatDate(clarification.requestedAt.toISOString()));
+        addText(`Richiesta #${index + 1}`, 12, true);
+        addText(`Data Richiesta: ${formatDate(clarification.requestedAt.toISOString())}`, 11, false);
 
         if (clarification.dueAt) {
-          doc.font('Helvetica-Bold').text('Scadenza: ', { continued: true });
-          doc.font('Helvetica').text(formatDateOnly(clarification.dueAt.toISOString()));
+          addText(`Scadenza: ${formatDateOnly(clarification.dueAt.toISOString())}`, 11, false);
         }
 
-        doc.moveDown(0.3);
-        doc.font('Helvetica-Bold').text('Domanda:');
-        doc.font('Helvetica').text(clarification.question, { align: 'justify' });
+        addText('Domanda:', 11, true);
+        addText(clarification.question, 10, false);
 
         if (clarification.feedback) {
-          doc.moveDown(0.5);
-          doc.font('Helvetica-Bold').text('Risposta:');
-          doc.font('Helvetica').text(clarification.feedback, { align: 'justify' });
+          addSpace(3);
+          addText('Risposta:', 11, true);
+          addText(clarification.feedback, 10, false);
 
           if (clarification.feedbackAt) {
-            doc.fontSize(10).font('Helvetica').fillColor('#666666')
-              .text(`Ricevuta il: ${formatDate(clarification.feedbackAt.toISOString())}`, { align: 'right' });
-            doc.fillColor('#000000');
+            addText(`Ricevuta il: ${formatDate(clarification.feedbackAt.toISOString())}`, 9, false);
           }
         } else {
-          doc.moveDown(0.3);
-          doc.fontSize(10).font('Helvetica-Oblique').fillColor('#999999')
-            .text('In attesa di risposta');
-          doc.fillColor('#000000');
+          addText('In attesa di risposta', 10, false);
         }
 
         if (clarification.attachments && clarification.attachments.length > 0) {
-          doc.moveDown(0.3);
-          doc.fontSize(11).font('Helvetica-Bold').text(`Allegati (${clarification.attachments.length}):`);
+          addText(`Allegati (${clarification.attachments.length}):`, 11, true);
           clarification.attachments.forEach((att) => {
-            doc.fontSize(9).font('Helvetica').fillColor('#666666')
-              .text(`  - ${att.originalName || att.filename}`, { indent: 10 });
+            addText(`- ${att.originalName || att.filename}`, 9, false, 10);
           });
-          doc.fillColor('#000000').fontSize(11);
         }
 
         if (index < report.clarifications.length - 1) {
-          doc.moveDown(1);
-          doc.strokeColor('#cccccc').lineWidth(0.5)
-            .moveTo(doc.x, doc.y)
-            .lineTo(doc.page.width - 100, doc.y)
-            .stroke();
-          doc.moveDown(1);
+          addSpace(5);
+          addSeparator();
+          addSpace(5);
         }
       });
 
-      doc.moveDown(1.5);
+      addSpace(10);
     }
 
-    // Segnalazioni a enti
+    // Segnalazioni
     if (report.authorityNotices.length > 0) {
       doc.addPage();
-      doc.fontSize(16).font('Helvetica-Bold').text('Segnalazioni ad Enti');
-      doc.moveDown(0.5);
+      yPos = 20;
+
+      addText('Segnalazioni ad Enti', 16, true);
+      addSpace();
 
       report.authorityNotices.forEach((notice, index) => {
-        doc.fontSize(12).font('Helvetica-Bold')
-          .text(`Segnalazione #${index + 1}`, { underline: true });
-        doc.moveDown(0.3);
-
-        doc.fontSize(11).font('Helvetica-Bold').text('Ente: ', { continued: true });
-        doc.font('Helvetica').text(notice.authority);
-
-        doc.font('Helvetica-Bold').text('Data Invio: ', { continued: true });
-        doc.font('Helvetica').text(formatDate(notice.sentAt.toISOString()));
+        addText(`Segnalazione #${index + 1}`, 12, true);
+        addText(`Ente: ${notice.authority}`, 11, false);
+        addText(`Data Invio: ${formatDate(notice.sentAt.toISOString())}`, 11, false);
 
         if (notice.protocol) {
-          doc.font('Helvetica-Bold').text('Protocollo: ', { continued: true });
-          doc.font('Helvetica').text(notice.protocol);
+          addText(`Protocollo: ${notice.protocol}`, 11, false);
         }
 
         if (notice.feedback) {
-          doc.moveDown(0.5);
-          doc.font('Helvetica-Bold').text('Feedback Ricevuto:');
-          doc.font('Helvetica').text(notice.feedback, { align: 'justify' });
+          addSpace(3);
+          addText('Feedback Ricevuto:', 11, true);
+          addText(notice.feedback, 10, false);
 
           if (notice.feedbackAt) {
-            doc.fontSize(10).font('Helvetica').fillColor('#666666')
-              .text(`Ricevuto il: ${formatDate(notice.feedbackAt.toISOString())}`, { align: 'right' });
-            doc.fillColor('#000000');
+            addText(`Ricevuto il: ${formatDate(notice.feedbackAt.toISOString())}`, 9, false);
           }
         } else {
-          doc.moveDown(0.3);
-          doc.fontSize(10).font('Helvetica-Oblique').fillColor('#999999')
-            .text('In attesa di feedback');
-          doc.fillColor('#000000');
+          addText('In attesa di feedback', 10, false);
         }
 
         if (notice.attachments && notice.attachments.length > 0) {
-          doc.moveDown(0.3);
-          doc.fontSize(11).font('Helvetica-Bold').text(`Allegati (${notice.attachments.length}):`);
+          addText(`Allegati (${notice.attachments.length}):`, 11, true);
           notice.attachments.forEach((att) => {
-            doc.fontSize(9).font('Helvetica').fillColor('#666666')
-              .text(`  - ${att.originalName || att.filename}`, { indent: 10 });
+            addText(`- ${att.originalName || att.filename}`, 9, false, 10);
           });
-          doc.fillColor('#000000').fontSize(11);
         }
 
         if (index < report.authorityNotices.length - 1) {
-          doc.moveDown(1);
-          doc.strokeColor('#cccccc').lineWidth(0.5)
-            .moveTo(doc.x, doc.y)
-            .lineTo(doc.page.width - 100, doc.y)
-            .stroke();
-          doc.moveDown(1);
+          addSpace(5);
+          addSeparator();
+          addSpace(5);
         }
       });
 
-      doc.moveDown(1.5);
+      addSpace(10);
     }
 
     // Allegati
     if (report.attachments.length > 0) {
       doc.addPage();
-      doc.fontSize(16).font('Helvetica-Bold').text('Allegati');
-      doc.moveDown(0.5);
+      yPos = 20;
 
-      doc.fontSize(11).font('Helvetica')
-        .text(`Totale allegati: ${report.attachments.length}`);
-      doc.moveDown(0.5);
+      addText('Allegati del Report', 16, true);
+      addSpace();
+      addText(`Totale allegati: ${report.attachments.length}`, 11, false);
+      addSpace();
 
       report.attachments.forEach((attachment, index) => {
-        doc.fontSize(10).font('Helvetica-Bold')
-          .text(`${index + 1}. `, { continued: true })
-          .font('Helvetica')
-          .text(attachment.originalName || attachment.filename);
+        addText(`${index + 1}. ${attachment.originalName || attachment.filename}`, 10, false);
 
         if (attachment.descrizione) {
-          doc.fontSize(9).fillColor('#666666')
-            .text(`   ${attachment.descrizione}`, { indent: 15 });
-          doc.fillColor('#000000');
+          addText(attachment.descrizione, 9, false, 15);
         }
 
-        doc.fontSize(9).fillColor('#666666')
-          .text(`   Caricato il: ${formatDate(attachment.uploadedAt.toISOString())}`, { indent: 15 });
-        doc.fillColor('#000000');
-
-        if (index < report.attachments.length - 1) {
-          doc.moveDown(0.3);
-        }
+        addText(`Caricato il: ${formatDate(attachment.uploadedAt.toISOString())}`, 9, false, 15);
+        addSpace(2);
       });
     }
 
     // Footer
     doc.addPage();
-    doc.moveDown(5);
-    doc.fontSize(10).font('Helvetica').fillColor('#999999')
-      .text('_'.repeat(80), { align: 'center' });
-    doc.moveDown(0.5);
-    doc.text(`Documento generato il ${format(new Date(), "dd MMMM yyyy 'alle' HH:mm", { locale: it })}`, {
-      align: 'center'
-    });
-    doc.text('Sistema Monitoraggio Olio di Roma', { align: 'center' });
+    yPos = pageHeight / 2;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(150, 150, 150);
+    doc.text('_'.repeat(80), pageWidth / 2, yPos, { align: 'center' });
+    yPos += 10;
+    doc.text(
+      `Documento generato il ${format(new Date(), "dd MMMM yyyy 'alle' HH:mm", { locale: it })}`,
+      pageWidth / 2,
+      yPos,
+      { align: 'center' }
+    );
+    yPos += 7;
+    doc.text('Sistema Monitoraggio Olio di Roma', pageWidth / 2, yPos, { align: 'center' });
 
-    // Finalizza il PDF
-    doc.end();
+    // Genera il PDF
+    const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
 
-    // Aspetta che il PDF sia completato
-    await new Promise((resolve) => {
-      doc.on('end', resolve);
-    });
-
-    const pdfBuffer = Buffer.concat(chunks);
-
-    // Ritorna il PDF come download
+    // Nome file
     const filename = `Report_${report.title.replace(/[^a-z0-9]/gi, '_')}_${format(new Date(), 'yyyyMMdd_HHmmss')}.pdf`;
 
     return new NextResponse(pdfBuffer, {
