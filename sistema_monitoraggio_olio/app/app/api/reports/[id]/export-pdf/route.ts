@@ -55,13 +55,13 @@ export async function GET(
     const report = await prisma.report.findUnique({
       where: { id: reportId },
       include: {
-        actionLogs: {
+        actions: {
           orderBy: { createdAt: 'desc' }
         },
         inspections: {
           orderBy: { date: 'desc' }
         },
-        clarificationRequests: {
+        clarifications: {
           orderBy: { requestedAt: 'desc' }
         },
         authorityNotices: {
@@ -124,11 +124,11 @@ export async function GET(
     doc.moveDown(1.5);
 
     // Timeline delle azioni
-    if (report.actionLogs.length > 0) {
+    if (report.actions.length > 0) {
       doc.fontSize(16).font('Helvetica-Bold').text('Timeline Attività');
       doc.moveDown(0.5);
 
-      report.actionLogs.forEach((log, index) => {
+      report.actions.forEach((log, index) => {
         const actionLabel = ACTION_TYPE_LABELS[log.type] || log.type;
 
         doc.fontSize(11).font('Helvetica-Bold')
@@ -137,7 +137,7 @@ export async function GET(
         doc.fontSize(10).font('Helvetica')
           .text(log.message, { indent: 20, align: 'justify' });
 
-        if (index < report.actionLogs.length - 1) {
+        if (index < report.actions.length - 1) {
           doc.moveDown(0.5);
         }
       });
@@ -190,12 +190,12 @@ export async function GET(
     }
 
     // Richieste di chiarimenti
-    if (report.clarificationRequests.length > 0) {
+    if (report.clarifications.length > 0) {
       doc.addPage();
       doc.fontSize(16).font('Helvetica-Bold').text('Richieste di Chiarimenti');
       doc.moveDown(0.5);
 
-      report.clarificationRequests.forEach((clarification, index) => {
+      report.clarifications.forEach((clarification, index) => {
         doc.fontSize(12).font('Helvetica-Bold')
           .text(`Richiesta #${index + 1}`, { underline: true });
         doc.moveDown(0.3);
@@ -229,7 +229,7 @@ export async function GET(
           doc.fillColor('#000000');
         }
 
-        if (index < report.clarificationRequests.length - 1) {
+        if (index < report.clarifications.length - 1) {
           doc.moveDown(1);
           doc.strokeColor('#cccccc').lineWidth(0.5)
             .moveTo(doc.x, doc.y)
