@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { db } from '@/lib/db';
+import { prisma } from '@/lib/db';
 import PDFDocument from 'pdfkit';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -52,7 +52,7 @@ export async function GET(
     const reportId = params.id;
 
     // Carica tutti i dati del report
-    const report = await db.report.findUnique({
+    const report = await prisma.report.findUnique({
       where: { id: reportId },
       include: {
         actionLogs: {
