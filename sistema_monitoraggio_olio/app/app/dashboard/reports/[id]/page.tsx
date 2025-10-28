@@ -279,6 +279,15 @@ export default function ReportDetailPage() {
     setIsTransitionDialogOpen(true);
   };
 
+  // Handle dialog close - reset both dialog state and target status
+  const handleTransitionDialogClose = (open: boolean) => {
+    setIsTransitionDialogOpen(open);
+    if (!open) {
+      // When dialog closes, reset target status so same state can be selected again
+      setTargetTransitionStatus(null);
+    }
+  };
+
   // Handle new inspection legacy
   const handleCreateInspection = async () => {
     try {
@@ -425,6 +434,17 @@ export default function ReportDetailPage() {
   const { report, actionLogs, inspections, clarificationRequests, authorityNotices, availableTransitions } = reportDetail;
   const statusConfig = STATUS_LABELS[report.status] || { label: report.status, color: 'bg-gray-100 text-gray-800' };
 
+  // Filter available transitions: remove BOZZA, and only allow ARCHIVIATO from CHIUSO
+  const filteredTransitions = (availableTransitions || []).filter(status => {
+    // Remove BOZZA from all options
+    if (status === 'BOZZA') return false;
+
+    // Only allow ARCHIVIATO when current status is CHIUSO
+    if (status === 'ARCHIVIATO' && report.status !== 'CHIUSO') return false;
+
+    return true;
+  });
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -450,13 +470,13 @@ export default function ReportDetailPage() {
             {statusConfig.label}
           </Badge>
 
-          {availableTransitions && availableTransitions.length > 0 && (
+          {filteredTransitions && filteredTransitions.length > 0 && (
             <Select onValueChange={openTransitionDialog}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Cambia Stato" />
               </SelectTrigger>
               <SelectContent>
-                {availableTransitions.map((status) => (
+                {filteredTransitions.map((status) => (
                   <SelectItem key={status} value={status}>
                     {STATUS_LABELS[status]?.label || status}
                   </SelectItem>
@@ -939,7 +959,7 @@ export default function ReportDetailPage() {
       {targetTransitionStatus && (
         <StateTransitionDialog
           open={isTransitionDialogOpen}
-          onOpenChange={setIsTransitionDialogOpen}
+          onOpenChange={handleTransitionDialogClose}
           reportId={reportId}
           currentStatus={report.status}
           targetStatus={targetTransitionStatus}
