@@ -192,6 +192,7 @@ export default function ReportDetailPage() {
   const [isInspectionDialogOpen, setIsInspectionDialogOpen] = useState(false);
   const [isClarificationDialogOpen, setIsClarificationDialogOpen] = useState(false);
   const [isAuthorityDialogOpen, setIsAuthorityDialogOpen] = useState(false);
+  const [isVerbaleDialogOpen, setIsVerbaleDialogOpen] = useState(false);
 
   // Form states legacy
   const [inspectionForm, setInspectionForm] = useState({
@@ -208,6 +209,16 @@ export default function ReportDetailPage() {
     authority: '',
     protocol: '',
     note: ''
+  });
+  const [verbaleForm, setVerbaleForm] = useState({
+    titoloVerbale: '',
+    dataOra: '',
+    luogo: '',
+    partecipanti: [''],
+    oggetto: '',
+    contenuto: '',
+    conclusioni: '',
+    firmatario: ''
   });
 
   // Load report detail
@@ -417,6 +428,95 @@ export default function ReportDetailPage() {
     setAttachments(newAttachments);
     // Ricarica i dettagli per aggiornare il count
     loadReportDetail();
+  };
+
+  // Handle generate verbale
+  const handleGenerateVerbale = async () => {
+    try {
+      // Validazione
+      if (!verbaleForm.titoloVerbale || verbaleForm.titoloVerbale.trim() === '') {
+        alert('Per favore inserisci il titolo del verbale');
+        return;
+      }
+
+      if (!verbaleForm.dataOra || verbaleForm.dataOra.trim() === '') {
+        alert('Per favore seleziona data e ora');
+        return;
+      }
+
+      // Filtra partecipanti vuoti
+      const partecipantiFiltrati = verbaleForm.partecipanti.filter(p => p.trim() !== '');
+
+      const response = await fetch(`/api/reports/${reportId}/generate-verbale`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...verbaleForm,
+          partecipanti: partecipantiFiltrati
+        }),
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Verbale_${verbaleForm.titoloVerbale.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        // Reset form e chiudi dialog
+        setIsVerbaleDialogOpen(false);
+        setVerbaleForm({
+          titoloVerbale: '',
+          dataOra: '',
+          luogo: '',
+          partecipanti: [''],
+          oggetto: '',
+          contenuto: '',
+          conclusioni: '',
+          firmatario: ''
+        });
+
+        alert('Verbale generato con successo!');
+      } else {
+        const error = await response.json();
+        console.error('Errore generazione verbale:', error);
+        alert(`Errore: ${error.error || 'Impossibile generare il verbale'}`);
+      }
+    } catch (error) {
+      console.error('Errore generazione verbale:', error);
+      alert('Errore durante la generazione del verbale');
+    }
+  };
+
+  // Handle add partecipante
+  const handleAddPartecipante = () => {
+    setVerbaleForm({
+      ...verbaleForm,
+      partecipanti: [...verbaleForm.partecipanti, '']
+    });
+  };
+
+  // Handle remove partecipante
+  const handleRemovePartecipante = (index: number) => {
+    const newPartecipanti = verbaleForm.partecipanti.filter((_, i) => i !== index);
+    setVerbaleForm({
+      ...verbaleForm,
+      partecipanti: newPartecipanti.length > 0 ? newPartecipanti : ['']
+    });
+  };
+
+  // Handle update partecipante
+  const handleUpdatePartecipante = (index: number, value: string) => {
+    const newPartecipanti = [...verbaleForm.partecipanti];
+    newPartecipanti[index] = value;
+    setVerbaleForm({
+      ...verbaleForm,
+      partecipanti: newPartecipanti
+    });
   };
 
   // Format date
@@ -975,11 +1075,139 @@ export default function ReportDetailPage() {
         {/* Attachments Tab - INTEGRATO CON AttachmentManager */}
         <TabsContent value="attachments">
           <Card>
-            <CardHeader>
-              <CardTitle>Allegati</CardTitle>
-              <CardDescription>
-                Documenti e file allegati a questo report. Carica nuovi file tramite drag & drop o seleziona manualmente.
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Allegati</CardTitle>
+                <CardDescription>
+                  Documenti e file allegati a questo report. Carica nuovi file tramite drag & drop o seleziona manualmente.
+                </CardDescription>
+              </div>
+              <Dialog open={isVerbaleDialogOpen} onOpenChange={setIsVerbaleDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Genera Verbale
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Genera Verbale PDF</DialogTitle>
+                    <DialogDescription>
+                      Compila il form per generare un verbale in formato PDF.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div>
+                      <Label>Titolo Verbale *</Label>
+                      <Input
+                        value={verbaleForm.titoloVerbale}
+                        onChange={(e) => setVerbaleForm({ ...verbaleForm, titoloVerbale: e.target.value })}
+                        placeholder="Es. Verbale di sopralluogo presso..."
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Data e Ora *</Label>
+                        <Input
+                          type="datetime-local"
+                          value={verbaleForm.dataOra}
+                          onChange={(e) => setVerbaleForm({ ...verbaleForm, dataOra: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label>Luogo</Label>
+                        <Input
+                          value={verbaleForm.luogo}
+                          onChange={(e) => setVerbaleForm({ ...verbaleForm, luogo: e.target.value })}
+                          placeholder="Es. Frantoio XYZ - Via Roma 123"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label>Partecipanti</Label>
+                      <div className="space-y-2">
+                        {verbaleForm.partecipanti.map((partecipante, index) => (
+                          <div key={index} className="flex gap-2">
+                            <Input
+                              value={partecipante}
+                              onChange={(e) => handleUpdatePartecipante(index, e.target.value)}
+                              placeholder={`Nome e cognome partecipante ${index + 1}`}
+                            />
+                            {verbaleForm.partecipanti.length > 1 && (
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => handleRemovePartecipante(index)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleAddPartecipante}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Aggiungi Partecipante
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label>Oggetto</Label>
+                      <Input
+                        value={verbaleForm.oggetto}
+                        onChange={(e) => setVerbaleForm({ ...verbaleForm, oggetto: e.target.value })}
+                        placeholder="Oggetto del verbale"
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Contenuto Verbale</Label>
+                      <Textarea
+                        value={verbaleForm.contenuto}
+                        onChange={(e) => setVerbaleForm({ ...verbaleForm, contenuto: e.target.value })}
+                        placeholder="Descrivi dettagliatamente il contenuto del verbale..."
+                        rows={8}
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Conclusioni</Label>
+                      <Textarea
+                        value={verbaleForm.conclusioni}
+                        onChange={(e) => setVerbaleForm({ ...verbaleForm, conclusioni: e.target.value })}
+                        placeholder="Eventuali conclusioni o decisioni prese..."
+                        rows={4}
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Firmatario/Verbalizzante</Label>
+                      <Input
+                        value={verbaleForm.firmatario}
+                        onChange={(e) => setVerbaleForm({ ...verbaleForm, firmatario: e.target.value })}
+                        placeholder="Nome e cognome del verbalizzante"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsVerbaleDialogOpen(false)}>
+                      Annulla
+                    </Button>
+                    <Button onClick={handleGenerateVerbale}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Genera PDF
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent>
               <AttachmentManager
