@@ -59,13 +59,28 @@ export async function GET(
           orderBy: { createdAt: 'desc' }
         },
         inspections: {
-          orderBy: { date: 'desc' }
+          orderBy: { date: 'desc' },
+          include: {
+            attachments: {
+              orderBy: { uploadedAt: 'desc' }
+            }
+          }
         },
         clarifications: {
-          orderBy: { requestedAt: 'desc' }
+          orderBy: { requestedAt: 'desc' },
+          include: {
+            attachments: {
+              orderBy: { uploadedAt: 'desc' }
+            }
+          }
         },
         authorityNotices: {
-          orderBy: { sentAt: 'desc' }
+          orderBy: { sentAt: 'desc' },
+          include: {
+            attachments: {
+              orderBy: { uploadedAt: 'desc' }
+            }
+          }
         },
         attachments: {
           orderBy: { uploadedAt: 'desc' }
@@ -176,6 +191,16 @@ export async function GET(
           doc.font('Helvetica').text(inspection.outcome);
         }
 
+        if (inspection.attachments && inspection.attachments.length > 0) {
+          doc.moveDown(0.3);
+          doc.font('Helvetica-Bold').text(`Allegati (${inspection.attachments.length}):`);
+          inspection.attachments.forEach((att) => {
+            doc.fontSize(9).font('Helvetica').fillColor('#666666')
+              .text(`  - ${att.originalName || att.filename}`, { indent: 10 });
+          });
+          doc.fillColor('#000000').fontSize(11);
+        }
+
         if (index < report.inspections.length - 1) {
           doc.moveDown(1);
           doc.strokeColor('#cccccc').lineWidth(0.5)
@@ -229,6 +254,16 @@ export async function GET(
           doc.fillColor('#000000');
         }
 
+        if (clarification.attachments && clarification.attachments.length > 0) {
+          doc.moveDown(0.3);
+          doc.fontSize(11).font('Helvetica-Bold').text(`Allegati (${clarification.attachments.length}):`);
+          clarification.attachments.forEach((att) => {
+            doc.fontSize(9).font('Helvetica').fillColor('#666666')
+              .text(`  - ${att.originalName || att.filename}`, { indent: 10 });
+          });
+          doc.fillColor('#000000').fontSize(11);
+        }
+
         if (index < report.clarifications.length - 1) {
           doc.moveDown(1);
           doc.strokeColor('#cccccc').lineWidth(0.5)
@@ -279,6 +314,16 @@ export async function GET(
           doc.fontSize(10).font('Helvetica-Oblique').fillColor('#999999')
             .text('In attesa di feedback');
           doc.fillColor('#000000');
+        }
+
+        if (notice.attachments && notice.attachments.length > 0) {
+          doc.moveDown(0.3);
+          doc.fontSize(11).font('Helvetica-Bold').text(`Allegati (${notice.attachments.length}):`);
+          notice.attachments.forEach((att) => {
+            doc.fontSize(9).font('Helvetica').fillColor('#666666')
+              .text(`  - ${att.originalName || att.filename}`, { indent: 10 });
+          });
+          doc.fillColor('#000000').fontSize(11);
         }
 
         if (index < report.authorityNotices.length - 1) {
