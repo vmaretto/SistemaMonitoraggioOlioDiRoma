@@ -92,13 +92,12 @@ export async function POST(
       );
     }
 
-    // Verifica che il report sia in uno stato che permette richieste di chiarimenti
-    const allowedStatuses = ['IN_LAVORAZIONE', 'IN_VERIFICA', 'RICHIESTA_CHIARIMENTI'];
-    if (!allowedStatuses.includes(report.status)) {
+    // Verifica che il report non sia archiviato
+    if (report.status === 'ARCHIVIATO') {
       return NextResponse.json(
         {
-          error: 'Stato del report non valido',
-          details: `Le richieste di chiarimenti sono consentite solo per report in stato IN_LAVORAZIONE, IN_VERIFICA o RICHIESTA_CHIARIMENTI. Stato attuale: ${report.status}`
+          error: 'Report archiviato',
+          details: 'Non è possibile creare richieste di chiarimenti per report archiviati'
         },
         { status: 400 }
       );

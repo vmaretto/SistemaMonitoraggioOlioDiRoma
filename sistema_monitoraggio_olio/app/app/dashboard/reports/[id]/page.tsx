@@ -334,7 +334,7 @@ export default function ReportDetailPage() {
         setIsClarificationDialogOpen(false);
         setClarificationForm({ question: '', dueAt: '' });
         loadReportDetail();
-        alert('Richiesta chiarimenti inviata con successo');
+        alert('Richiesta chiarimenti inviata con successo. Lo stato del report è stato aggiornato a "Richiesta Chiarimenti".');
       } else {
         const error = await response.json();
         console.error('Errore richiesta chiarimenti:', error);
@@ -364,7 +364,7 @@ export default function ReportDetailPage() {
         setIsAuthorityDialogOpen(false);
         setAuthorityForm({ authority: '', protocol: '', note: '' });
         loadReportDetail();
-        alert('Segnalazione all\'ente inviata con successo');
+        alert('Segnalazione all\'ente inviata con successo. Lo stato del report è stato aggiornato a "Segnalato Autorità".');
       } else {
         const error = await response.json();
         console.error('Errore segnalazione ente:', error);

@@ -59,14 +59,16 @@ const closeMetadataSchema = z.object({
 });
 
 // Mappa delle transizioni consentite secondo il workflow
+// Da qualsiasi stato (tranne ARCHIVIATO) si può andare a qualsiasi altro stato
+const allStates: string[] = ['BOZZA', 'IN_LAVORAZIONE', 'IN_VERIFICA', 'RICHIESTA_CHIARIMENTI', 'SEGNALATO_AUTORITA', 'CHIUSO', 'ARCHIVIATO'];
 const allowedTransitions: Record<string, string[]> = {
-  BOZZA: ['IN_LAVORAZIONE', 'ARCHIVIATO'],
-  IN_LAVORAZIONE: ['IN_VERIFICA', 'RICHIESTA_CHIARIMENTI', 'SEGNALATO_AUTORITA', 'CHIUSO'],
-  IN_VERIFICA: ['IN_LAVORAZIONE', 'RICHIESTA_CHIARIMENTI', 'SEGNALATO_AUTORITA', 'CHIUSO'],
-  RICHIESTA_CHIARIMENTI: ['IN_LAVORAZIONE', 'SEGNALATO_AUTORITA', 'CHIUSO'],
-  SEGNALATO_AUTORITA: ['IN_LAVORAZIONE', 'CHIUSO'],
-  CHIUSO: ['ARCHIVIATO'],
-  ARCHIVIATO: []
+  BOZZA: allStates.filter(s => s !== 'BOZZA'),
+  IN_LAVORAZIONE: allStates.filter(s => s !== 'IN_LAVORAZIONE'),
+  IN_VERIFICA: allStates.filter(s => s !== 'IN_VERIFICA'),
+  RICHIESTA_CHIARIMENTI: allStates.filter(s => s !== 'RICHIESTA_CHIARIMENTI'),
+  SEGNALATO_AUTORITA: allStates.filter(s => s !== 'SEGNALATO_AUTORITA'),
+  CHIUSO: allStates.filter(s => s !== 'CHIUSO'),
+  ARCHIVIATO: [] // Stato terminale - nessuna transizione possibile
 };
 
 // POST /api/reports/[id]/transition - Applica transizione di stato

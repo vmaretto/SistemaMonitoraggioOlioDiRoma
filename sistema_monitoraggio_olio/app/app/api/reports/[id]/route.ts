@@ -5,14 +5,16 @@ import { prisma } from '@/lib/db';
 import { ReportStatus } from '@prisma/client';
 
 // Mappa delle transizioni consentite secondo il workflow
+// Da qualsiasi stato (tranne ARCHIVIATO) si può andare a qualsiasi altro stato
+const allStates: ReportStatus[] = ['BOZZA', 'IN_LAVORAZIONE', 'IN_VERIFICA', 'RICHIESTA_CHIARIMENTI', 'SEGNALATO_AUTORITA', 'CHIUSO', 'ARCHIVIATO'];
 const allowedTransitions: Record<ReportStatus, ReportStatus[]> = {
-  BOZZA: ['IN_LAVORAZIONE', 'ARCHIVIATO'],
-  IN_LAVORAZIONE: ['IN_VERIFICA', 'RICHIESTA_CHIARIMENTI', 'ARCHIVIATO'],
-  IN_VERIFICA: ['SEGNALATO_AUTORITA', 'CHIUSO', 'RICHIESTA_CHIARIMENTI', 'IN_LAVORAZIONE'],
-  RICHIESTA_CHIARIMENTI: ['IN_VERIFICA', 'SEGNALATO_AUTORITA', 'CHIUSO', 'IN_LAVORAZIONE'],
-  SEGNALATO_AUTORITA: ['CHIUSO', 'IN_VERIFICA'],
-  CHIUSO: ['ARCHIVIATO'],
-  ARCHIVIATO: [] // Stato terminale
+  BOZZA: allStates.filter(s => s !== 'BOZZA'),
+  IN_LAVORAZIONE: allStates.filter(s => s !== 'IN_LAVORAZIONE'),
+  IN_VERIFICA: allStates.filter(s => s !== 'IN_VERIFICA'),
+  RICHIESTA_CHIARIMENTI: allStates.filter(s => s !== 'RICHIESTA_CHIARIMENTI'),
+  SEGNALATO_AUTORITA: allStates.filter(s => s !== 'SEGNALATO_AUTORITA'),
+  CHIUSO: allStates.filter(s => s !== 'CHIUSO'),
+  ARCHIVIATO: [] // Stato terminale - nessuna transizione possibile
 };
 
 // GET /api/reports/[id] - Dettaglio report completo

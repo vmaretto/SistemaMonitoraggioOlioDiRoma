@@ -94,13 +94,12 @@ export async function POST(
       );
     }
 
-    // Verifica che il report sia in uno stato che permette sopralluoghi
-    const allowedStatuses = ['IN_LAVORAZIONE', 'IN_VERIFICA'];
-    if (!allowedStatuses.includes(report.status)) {
+    // Verifica che il report non sia archiviato
+    if (report.status === 'ARCHIVIATO') {
       return NextResponse.json(
         {
-          error: 'Stato del report non valido',
-          details: `I sopralluoghi sono consentiti solo per report in stato IN_LAVORAZIONE o IN_VERIFICA. Stato attuale: ${report.status}`
+          error: 'Report archiviato',
+          details: 'Non è possibile creare sopralluoghi per report archiviati'
         },
         { status: 400 }
       );

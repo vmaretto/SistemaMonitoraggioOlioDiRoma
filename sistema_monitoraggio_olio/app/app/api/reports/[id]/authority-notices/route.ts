@@ -96,26 +96,12 @@ export async function POST(
       );
     }
 
-    // Verifica che il report sia in uno stato che permette segnalazioni all'ente
-    // Praticamente tutti gli stati tranne BOZZA e ARCHIVIATO
-    const forbiddenStatuses = ['BOZZA', 'ARCHIVIATO'];
-    if (forbiddenStatuses.includes(report.status)) {
+    // Verifica che il report non sia archiviato
+    if (report.status === 'ARCHIVIATO') {
       return NextResponse.json(
         {
-          error: 'Stato del report non valido',
-          details: `Le segnalazioni all'ente non sono consentite per report in stato ${report.status}. Il report deve essere almeno in lavorazione.`
-        },
-        { status: 400 }
-      );
-    }
-
-    // Verifica se esiste già una segnalazione in attesa di feedback
-    const pendingNotice = report.authorityNotices.find(notice => !notice.feedbackAt);
-    if (pendingNotice) {
-      return NextResponse.json(
-        { 
-          error: 'Segnalazione già inviata',
-          details: `Esiste già una segnalazione a ${pendingNotice.authority} in attesa di feedback (del ${pendingNotice.sentAt.toLocaleDateString('it-IT')})`
+          error: 'Report archiviato',
+          details: 'Non è possibile creare segnalazioni per report archiviati'
         },
         { status: 400 }
       );
