@@ -57,7 +57,8 @@ import {
   CheckCircle,
   AlertTriangle,
   Clock,
-  ChevronRight
+  ChevronRight,
+  FileDown
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -288,6 +289,32 @@ export default function ReportDetailPage() {
     }
   };
 
+  // Handle PDF export
+  const handleExportPDF = async () => {
+    try {
+      const response = await fetch(`/api/reports/${reportId}/export-pdf`);
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Report_${report?.title.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        const error = await response.json();
+        console.error('Errore export PDF:', error);
+        alert(`Errore: ${error.error || 'Impossibile generare il PDF'}`);
+      }
+    } catch (error) {
+      console.error('Errore export PDF:', error);
+      alert('Errore durante la generazione del PDF');
+    }
+  };
+
   // Handle new inspection legacy
   const handleCreateInspection = async () => {
     try {
@@ -469,6 +496,19 @@ export default function ReportDetailPage() {
           <Badge className={statusConfig.color}>
             {statusConfig.label}
           </Badge>
+
+          {/* Pulsante Download PDF - visibile solo per report CHIUSO o ARCHIVIATO */}
+          {(report.status === 'CHIUSO' || report.status === 'ARCHIVIATO') && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportPDF}
+              className="flex items-center gap-2"
+            >
+              <FileDown className="h-4 w-4" />
+              Scarica PDF
+            </Button>
+          )}
 
           {filteredTransitions && filteredTransitions.length > 0 && (
             <Select onValueChange={openTransitionDialog}>
