@@ -282,22 +282,37 @@ export default function ReportDetailPage() {
   // Handle new inspection legacy
   const handleCreateInspection = async () => {
     try {
+      // Validazione input
+      if (!inspectionForm.date || inspectionForm.date.trim() === '') {
+        alert('Per favore seleziona data e ora del sopralluogo');
+        return;
+      }
+
+      // Converti datetime-local (YYYY-MM-DDTHH:mm) in formato ISO (YYYY-MM-DDTHH:mm:ss.sssZ)
+      const dateValue = new Date(inspectionForm.date).toISOString();
+
       const response = await fetch(`/api/reports/${reportId}/inspections`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(inspectionForm),
+        body: JSON.stringify({
+          ...inspectionForm,
+          date: dateValue
+        }),
       });
 
       if (response.ok) {
         setIsInspectionDialogOpen(false);
         setInspectionForm({ date: '', location: '', minutesText: '', outcome: '' });
         loadReportDetail();
+        alert('Sopralluogo registrato con successo. Lo stato del report è stato aggiornato a "In Verifica".');
       } else {
         const error = await response.json();
         console.error('Errore creazione sopralluogo:', error);
+        alert(`Errore: ${error.error || 'Impossibile creare il sopralluogo'}\n${error.details || ''}`);
       }
     } catch (error) {
       console.error('Errore creazione sopralluogo:', error);
+      alert('Errore di connessione. Riprova più tardi.');
     }
   };
 
@@ -593,11 +608,12 @@ export default function ReportDetailPage() {
                   <div className="space-y-4 py-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label>Data e Ora</Label>
+                        <Label>Data e Ora *</Label>
                         <Input
                           type="datetime-local"
                           value={inspectionForm.date}
                           onChange={(e) => setInspectionForm({ ...inspectionForm, date: e.target.value })}
+                          required
                         />
                       </div>
                       <div>
