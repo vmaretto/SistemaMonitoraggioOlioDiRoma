@@ -35,16 +35,42 @@ async function fetchFromSerpAPI(keyword: string) {
 
     const data = await response.json();
 
-    // Google News API restituisce news_results direttamente
+    // Log per debug
+    console.log('🔍 SerpAPI response keys:', Object.keys(data));
+
+    // Google News API può restituire news_results direttamente
+    // oppure avere una struttura con stories nidificate
     const newsResults = data.news_results || [];
 
-    return newsResults.map((item: any) => ({
-      title: item.title || '',
-      snippet: item.snippet || item.title || '',
-      url: item.link || '',
-      source: item.source || 'Google News',
-      date: item.date || new Date().toISOString()
-    }));
+    console.log(`📰 Trovati ${newsResults.length} risultati per keyword: ${keyword}`);
+
+    const results = [];
+    for (const item of newsResults) {
+      // Alcuni risultati hanno stories nidificate
+      if (item.stories && Array.isArray(item.stories)) {
+        for (const story of item.stories) {
+          results.push({
+            title: story.title || '',
+            snippet: story.snippet || story.title || '',
+            url: story.link || '',
+            source: story.source?.name || story.source || 'Google News',
+            date: story.date || new Date().toISOString()
+          });
+        }
+      } else {
+        // Risultato diretto
+        results.push({
+          title: item.title || '',
+          snippet: item.snippet || item.title || '',
+          url: item.link || '',
+          source: item.source?.name || item.source || 'Google News',
+          date: item.date || new Date().toISOString()
+        });
+      }
+    }
+
+    console.log(`✅ Mappati ${results.length} contenuti`);
+    return results;
 
   } catch (error) {
     console.error('❌ Errore SerpAPI:', error);
@@ -135,17 +161,20 @@ export async function POST(request: NextRequest) {
 
               const sentimentResult = await analyzeSentiment(result.snippet || result.title);
 
+              // Log per debug del contenuto da salvare
+              console.log(`💾 Salvando: "${(result.title || '').substring(0, 50)}..." - Rilevanza: ${contentAnalysis.relevance}`);
+
               await prisma.contenutiMonitorati.create({
                 data: {
                   fonte: result.source || 'Google News',
                   piattaforma: 'news',
-                  testo: result.snippet || result.title,
-                  url: result.url,
-                  sentiment: sentimentResult.sentiment,
-                  sentimentScore: sentimentResult.score,
-                  keywords: contentAnalysis.keywords,
+                  testo: result.snippet || result.title || 'Contenuto non disponibile',
+                  url: result.url || null,
+                  sentiment: sentimentResult.sentiment || 'neutrale',
+                  sentimentScore: typeof sentimentResult.score === 'number' ? sentimentResult.score : 0,
+                  keywords: contentAnalysis.keywords || [],
                   dataPost: parseDate(result.date),
-                  rilevanza: contentAnalysis.relevance,
+                  rilevanza: Math.round(contentAnalysis.relevance || 0), // Assicura che sia Int
                   metadata: sentimentResult.base && sentimentResult.ai ? {
                     sentimentAnalysis: {
                       base: sentimentResult.base,
