@@ -20,22 +20,22 @@ async function fetchFromSerpAPI(keyword: string) {
 
   try {
     const params = new URLSearchParams({
-      engine: 'google',
+      engine: 'google_news',
       q: keyword,
-      tbm: 'nws',
       api_key: apiKey,
-      num: '10',
       hl: 'it',
       gl: 'it'
     });
 
     const response = await fetch(`https://serpapi.com/search?${params}`);
-    
+
     if (!response.ok) {
       throw new Error(`SerpAPI error: ${response.status}`);
     }
 
     const data = await response.json();
+
+    // Google News API restituisce news_results direttamente
     const newsResults = data.news_results || [];
 
     return newsResults.map((item: any) => ({
