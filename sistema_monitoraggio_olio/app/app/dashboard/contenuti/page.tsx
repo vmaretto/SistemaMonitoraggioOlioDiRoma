@@ -179,7 +179,10 @@ export default function ContenutiMonitoratiPage() {
   const syncProviders = async () => {
   try {
     setSyncing(true);
-    
+
+    // Salva timestamp PRIMA della sincronizzazione per identificare i nuovi contenuti
+    const syncStartTime = new Date();
+
     // Mostra messaggio iniziale
     const startMessage = "🔄 Avvio sincronizzazione...\n\n" +
       "Sto contattando i provider esterni:\n" +
@@ -188,21 +191,24 @@ export default function ContenutiMonitoratiPage() {
       "• Webz.io\n\n" +
       "⏳ Questa operazione può richiedere 10-30 secondi.\n" +
       "Attendi senza ricaricare la pagina...";
-    
+
     // Crea un alert che mostra il progresso (opzionale)
     console.log(startMessage);
-    
+
     const response = await fetch('/api/providers/sync', {
       method: 'POST'
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || 'Errore nella sincronizzazione');
     }
-    
+
     const data = await response.json();
-    setLastSync(new Date());
+    console.log('📊 Risposta sync:', data); // Debug log
+
+    // Usa il timestamp di PRIMA della sincronizzazione per evidenziare i nuovi
+    setLastSync(syncStartTime);
     setNewContentCount(data.newContents || 0);
     
     // Ricarica contenuti dopo la sincronizzazione
@@ -670,8 +676,17 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
             </div>
           </Card>
         ) : (
-          filteredContenuti.map((contenuto) => (
-            <Card key={contenuto.id} className="p-6 hover:shadow-lg transition-shadow">
+          filteredContenuti.map((contenuto) => {
+            // Determina se il contenuto è "nuovo" (creato dopo l'ultima sincronizzazione)
+            const isNew = lastSync && new Date(contenuto.createdAt) >= lastSync;
+
+            return (
+            <Card
+              key={contenuto.id}
+              className={`p-6 hover:shadow-lg transition-shadow ${
+                isNew ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+              }`}
+            >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3 flex-1">
                   {getSentimentIcon(contenuto.sentiment)}
@@ -778,9 +793,13 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
 
               <div className="text-xs text-gray-400 mt-2">
                 Rilevato il: {formatDate(contenuto.createdAt)}
+                {isNew && (
+                  <span className="ml-2 text-blue-600 font-semibold">• NUOVO</span>
+                )}
               </div>
             </Card>
-          ))
+            );
+          })
         )}
       </div>
     </div>
