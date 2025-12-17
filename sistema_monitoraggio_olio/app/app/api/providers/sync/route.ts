@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { processContentForMonitoring, analyzeSentiment } from '@/lib/keyword-matching';
+import { processContentForMonitoring, analyzeSentimentBase } from '@/lib/keyword-matching';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
+
+// Limite risultati per keyword per evitare timeout (Vercel limit: 60s)
+const MAX_RESULTS_PER_KEYWORD = 10;
 
 /**
  * Fetch da SerpAPI
@@ -136,8 +139,12 @@ export async function POST(request: NextRequest) {
           if (!providersUsed.includes('SerpAPI (Google News)')) {
             providersUsed.push('SerpAPI (Google News)');
           }
-          
-          for (const result of newsResults) {
+
+          // Limita i risultati per evitare timeout
+          const limitedResults = newsResults.slice(0, MAX_RESULTS_PER_KEYWORD);
+          console.log(`📋 Processando ${limitedResults.length}/${newsResults.length} risultati per "${keyword}"`);
+
+          for (const result of limitedResults) {
             try {
               const existing = await prisma.contenutiMonitorati.findFirst({
                 where: {
@@ -159,7 +166,8 @@ export async function POST(request: NextRequest) {
                 continue;
               }
 
-              const sentimentResult = await analyzeSentiment(result.snippet || result.title);
+              // Usa analisi BASE (senza AI) per velocizzare la sincronizzazione bulk
+              const sentimentResult = analyzeSentimentBase(result.snippet || result.title);
 
               // Log per debug del contenuto da salvare
               console.log(`💾 Salvando: "${(result.title || '').substring(0, 50)}..." - Rilevanza: ${contentAnalysis.relevance}`);
@@ -174,13 +182,13 @@ export async function POST(request: NextRequest) {
                   sentimentScore: typeof sentimentResult.score === 'number' ? sentimentResult.score : 0,
                   keywords: contentAnalysis.keywords || [],
                   dataPost: parseDate(result.date),
-                  rilevanza: Math.round(contentAnalysis.relevance || 0), // Assicura che sia Int
-                  metadata: sentimentResult.base && sentimentResult.ai ? {
+                  rilevanza: Math.round(contentAnalysis.relevance || 0),
+                  metadata: {
                     sentimentAnalysis: {
-                      base: sentimentResult.base,
-                      ai: sentimentResult.ai
+                      method: sentimentResult.method,
+                      confidence: sentimentResult.confidence
                     }
-                  } : undefined
+                  }
                 }
               });
 
