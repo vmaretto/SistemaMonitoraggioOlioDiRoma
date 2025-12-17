@@ -128,7 +128,8 @@ export async function POST(
             reportId: clarification.reportId,
             sentBy: session.user.id,
             authority: validatedData.authority!,
-            protocol: validatedData.protocol || null
+            protocol: validatedData.protocol || null,
+            testo: validatedData.feedback || `Segnalazione a ${validatedData.authority} in seguito ai chiarimenti ricevuti`
           }
         });
 

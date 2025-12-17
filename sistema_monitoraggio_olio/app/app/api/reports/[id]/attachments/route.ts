@@ -48,10 +48,11 @@ export async function GET(
 
     // Raggruppa allegati per tipo di entità
     const attachmentsByType = attachments.reduce((acc, attachment) => {
-      if (!acc[attachment.entityType]) {
-        acc[attachment.entityType] = [];
+      const type = attachment.entityType || 'UNKNOWN';
+      if (!acc[type]) {
+        acc[type] = [];
       }
-      acc[attachment.entityType].push(attachment);
+      acc[type].push(attachment);
       return acc;
     }, {} as Record<string, any[]>);
 

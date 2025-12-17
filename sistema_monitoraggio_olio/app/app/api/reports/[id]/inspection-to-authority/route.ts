@@ -102,7 +102,8 @@ export async function POST(
           reportId,
           sentBy: session.user.id,
           authority: validatedData.authority,
-          protocol: validatedData.protocol || null
+          protocol: validatedData.protocol || null,
+          testo: validatedData.note || `Segnalazione a ${validatedData.authority} in seguito a sopralluogo`
         }
       });
 

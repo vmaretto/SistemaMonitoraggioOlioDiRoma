@@ -665,7 +665,8 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
       sentBy: inspectorUser.id,
       authority: 'ICQRF - Ispettorato Centrale Qualità e Frodi',
       protocol: 'ICQRF-2024-001234',
-      sentAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) // 1 giorno fa
+      sentAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 giorno fa
+      testo: 'Segnalazione vendita olio con etichetta DOP Sabina contraffatta presso mercato rionale. Si richiede intervento per verifica e sequestro merce.'
     }
   });
 
@@ -772,7 +773,11 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
         entityType: 'REPORT',
         entityId: report1.id,
         filename: 'foto_etichetta_sospetta.jpg',
+        originalName: 'foto_etichetta_sospetta.jpg',
+        mimeType: 'image/jpeg',
+        size: 245000,
         url: '/uploads/attachments/foto_etichetta_sospetta.jpg',
+        storagePath: 'uploads/attachments/foto_etichetta_sospetta.jpg',
         uploadedBy: analystUser.id
       },
       {
@@ -780,7 +785,11 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
         entityType: 'INSPECTION',
         entityId: inspection1.id,
         filename: 'verbale_sopralluogo_frantoio.pdf',
+        originalName: 'verbale_sopralluogo_frantoio.pdf',
+        mimeType: 'application/pdf',
+        size: 150000,
         url: '/uploads/attachments/verbale_sopralluogo_frantoio.pdf',
+        storagePath: 'uploads/attachments/verbale_sopralluogo_frantoio.pdf',
         uploadedBy: inspectorUser.id
       },
       {
@@ -788,7 +797,11 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
         entityType: 'AUTHORITY_NOTICE',
         entityId: authorityNotice1.id,
         filename: 'segnalazione_icqrf.pdf',
+        originalName: 'segnalazione_icqrf.pdf',
+        mimeType: 'application/pdf',
+        size: 180000,
         url: '/uploads/attachments/segnalazione_icqrf.pdf',
+        storagePath: 'uploads/attachments/segnalazione_icqrf.pdf',
         uploadedBy: inspectorUser.id
       }
     ]
