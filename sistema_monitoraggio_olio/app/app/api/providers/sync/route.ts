@@ -131,6 +131,13 @@ export async function POST(request: NextRequest) {
     const providersUsed: string[] = [];
     const errors: string[] = [];
 
+    // PRE-CARICA tutti gli URL esistenti in memoria (UNA sola query)
+    const existingContents = await prisma.contenutiMonitorati.findMany({
+      select: { url: true }
+    });
+    const existingUrls = new Set(existingContents.map(c => c.url).filter(Boolean));
+    console.log(`📦 Pre-caricati ${existingUrls.size} URL esistenti in memoria`);
+
     for (const keyword of keywordList) {
       try {
         const newsResults = await fetchFromSerpAPI(keyword);
@@ -152,15 +159,8 @@ export async function POST(request: NextRequest) {
             }
 
             try {
-              // Verifica se già esiste (non conta nel limite)
-              const existing = await prisma.contenutiMonitorati.findFirst({
-                where: {
-                  url: result.url,
-                  testo: result.snippet || result.title
-                }
-              });
-
-              if (existing) {
+              // Verifica se già esiste IN MEMORIA (istantaneo, no query DB)
+              if (result.url && existingUrls.has(result.url)) {
                 continue; // Salta ma NON conta nel limite
               }
 
@@ -198,6 +198,11 @@ export async function POST(request: NextRequest) {
                   }
                 }
               });
+
+              // Aggiungi URL al Set per evitare duplicati tra keywords diverse
+              if (result.url) {
+                existingUrls.add(result.url);
+              }
 
               savedForKeyword++;
               totalNewContents++;
