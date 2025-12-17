@@ -184,6 +184,7 @@ export default function ReportDetailPage() {
   // State transition dialog
   const [isTransitionDialogOpen, setIsTransitionDialogOpen] = useState(false);
   const [targetTransitionStatus, setTargetTransitionStatus] = useState<string | null>(null);
+  const [selectedTransitionValue, setSelectedTransitionValue] = useState<string>('');
 
   // Attachments
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
@@ -297,6 +298,7 @@ export default function ReportDetailPage() {
     if (!open) {
       // When dialog closes, reset target status so same state can be selected again
       setTargetTransitionStatus(null);
+      setSelectedTransitionValue(''); // Reset del valore visualizzato nel Select
     }
   };
 
@@ -371,10 +373,18 @@ export default function ReportDetailPage() {
         return;
       }
 
+      // Prepara il payload con conversione della data in formato ISO
+      const payload = {
+        question: clarificationForm.question,
+        dueAt: clarificationForm.dueAt
+          ? new Date(clarificationForm.dueAt).toISOString()
+          : undefined
+      };
+
       const response = await fetch(`/api/reports/${reportId}/clarifications`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(clarificationForm),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
@@ -611,7 +621,13 @@ export default function ReportDetailPage() {
           )}
 
           {filteredTransitions && filteredTransitions.length > 0 && (
-            <Select onValueChange={openTransitionDialog}>
+            <Select
+              value={selectedTransitionValue}
+              onValueChange={(value) => {
+                setSelectedTransitionValue(value);
+                openTransitionDialog(value);
+              }}
+            >
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Cambia Stato" />
               </SelectTrigger>

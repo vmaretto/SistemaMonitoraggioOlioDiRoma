@@ -39,6 +39,22 @@ function formatDateOnly(dateStr: string): string {
   return format(new Date(dateStr), "dd MMM yyyy", { locale: it });
 }
 
+// Helper per sanitizzare il testo per il PDF (jsPDF non gestisce bene caratteri Unicode)
+function sanitizeForPdf(text: string): string {
+  return text
+    .replace(/→/g, '->')
+    .replace(/←/g, '<-')
+    .replace(/'/g, "'")
+    .replace(/'/g, "'")
+    .replace(/"/g, '"')
+    .replace(/"/g, '"')
+    .replace(/…/g, '...')
+    .replace(/–/g, '-')
+    .replace(/—/g, '-')
+    .replace(/•/g, '*')
+    .replace(/\u00A0/g, ' '); // Non-breaking space
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -144,7 +160,7 @@ export async function GET(
     addText('Informazioni Generali', 16, true);
     addSpace();
 
-    addText(`Titolo: ${report.title}`, 12, false);
+    addText(`Titolo: ${sanitizeForPdf(report.title)}`, 12, false);
     addText(`ID: ${report.id}`, 10, false);
     addText(`Stato: ${STATUS_LABELS[report.status] || report.status}`, 10, false);
     addText(`Data Creazione: ${formatDate(report.createdAt.toISOString())}`, 10, false);
@@ -153,7 +169,7 @@ export async function GET(
     if (report.description) {
       addSpace();
       addText('Descrizione:', 10, true);
-      addText(report.description, 10, false);
+      addText(sanitizeForPdf(report.description), 10, false);
     }
 
     addSpace(10);
@@ -166,7 +182,7 @@ export async function GET(
       report.actions.forEach((log) => {
         const actionLabel = ACTION_TYPE_LABELS[log.type] || log.type;
         addText(`${formatDate(log.createdAt.toISOString())} - ${actionLabel}`, 11, true);
-        addText(log.message, 10, false, 10);
+        addText(sanitizeForPdf(log.message), 10, false, 10);
         addSpace(3);
       });
 
@@ -186,22 +202,22 @@ export async function GET(
         addText(`Data: ${formatDate(inspection.date.toISOString())}`, 11, false);
 
         if (inspection.location) {
-          addText(`Localita: ${inspection.location}`, 11, false);
+          addText(`Localita: ${sanitizeForPdf(inspection.location)}`, 11, false);
         }
 
         if (inspection.minutesText) {
           addText('Verbale:', 11, true);
-          addText(inspection.minutesText, 10, false);
+          addText(sanitizeForPdf(inspection.minutesText), 10, false);
         }
 
         if (inspection.outcome) {
-          addText(`Esito: ${inspection.outcome}`, 11, false);
+          addText(`Esito: ${sanitizeForPdf(inspection.outcome)}`, 11, false);
         }
 
         if (inspection.attachments && inspection.attachments.length > 0) {
           addText(`Allegati (${inspection.attachments.length}):`, 11, true);
           inspection.attachments.forEach((att) => {
-            addText(`- ${att.originalName || att.filename}`, 9, false, 10);
+            addText(`- ${sanitizeForPdf(att.originalName || att.filename)}`, 9, false, 10);
           });
         }
 
@@ -232,12 +248,12 @@ export async function GET(
         }
 
         addText('Domanda:', 11, true);
-        addText(clarification.question, 10, false);
+        addText(sanitizeForPdf(clarification.question), 10, false);
 
         if (clarification.feedback) {
           addSpace(3);
           addText('Risposta:', 11, true);
-          addText(clarification.feedback, 10, false);
+          addText(sanitizeForPdf(clarification.feedback), 10, false);
 
           if (clarification.feedbackAt) {
             addText(`Ricevuta il: ${formatDate(clarification.feedbackAt.toISOString())}`, 9, false);
@@ -249,7 +265,7 @@ export async function GET(
         if (clarification.attachments && clarification.attachments.length > 0) {
           addText(`Allegati (${clarification.attachments.length}):`, 11, true);
           clarification.attachments.forEach((att) => {
-            addText(`- ${att.originalName || att.filename}`, 9, false, 10);
+            addText(`- ${sanitizeForPdf(att.originalName || att.filename)}`, 9, false, 10);
           });
         }
 
@@ -273,17 +289,17 @@ export async function GET(
 
       report.authorityNotices.forEach((notice, index) => {
         addText(`Segnalazione #${index + 1}`, 12, true);
-        addText(`Ente: ${notice.authority}`, 11, false);
+        addText(`Ente: ${sanitizeForPdf(notice.authority)}`, 11, false);
         addText(`Data Invio: ${formatDate(notice.sentAt.toISOString())}`, 11, false);
 
         if (notice.protocol) {
-          addText(`Protocollo: ${notice.protocol}`, 11, false);
+          addText(`Protocollo: ${sanitizeForPdf(notice.protocol)}`, 11, false);
         }
 
         if (notice.feedback) {
           addSpace(3);
           addText('Feedback Ricevuto:', 11, true);
-          addText(notice.feedback, 10, false);
+          addText(sanitizeForPdf(notice.feedback), 10, false);
 
           if (notice.feedbackAt) {
             addText(`Ricevuto il: ${formatDate(notice.feedbackAt.toISOString())}`, 9, false);
@@ -295,7 +311,7 @@ export async function GET(
         if (notice.attachments && notice.attachments.length > 0) {
           addText(`Allegati (${notice.attachments.length}):`, 11, true);
           notice.attachments.forEach((att) => {
-            addText(`- ${att.originalName || att.filename}`, 9, false, 10);
+            addText(`- ${sanitizeForPdf(att.originalName || att.filename)}`, 9, false, 10);
           });
         }
 
@@ -320,10 +336,10 @@ export async function GET(
       addSpace();
 
       report.attachments.forEach((attachment, index) => {
-        addText(`${index + 1}. ${attachment.originalName || attachment.filename}`, 10, false);
+        addText(`${index + 1}. ${sanitizeForPdf(attachment.originalName || attachment.filename)}`, 10, false);
 
         if (attachment.descrizione) {
-          addText(attachment.descrizione, 9, false, 15);
+          addText(sanitizeForPdf(attachment.descrizione), 9, false, 15);
         }
 
         addText(`Caricato il: ${formatDate(attachment.uploadedAt.toISOString())}`, 9, false, 15);
