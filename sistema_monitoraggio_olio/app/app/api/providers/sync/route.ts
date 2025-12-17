@@ -140,12 +140,19 @@ export async function POST(request: NextRequest) {
             providersUsed.push('SerpAPI (Google News)');
           }
 
-          // Limita i risultati per evitare timeout
-          const limitedResults = newsResults.slice(0, MAX_RESULTS_PER_KEYWORD);
-          console.log(`📋 Processando ${limitedResults.length}/${newsResults.length} risultati per "${keyword}"`);
+          // Contatore per nuovi contenuti salvati per questa keyword
+          let savedForKeyword = 0;
+          console.log(`📋 Processando ${newsResults.length} risultati per "${keyword}" (max ${MAX_RESULTS_PER_KEYWORD} nuovi)`);
 
-          for (const result of limitedResults) {
+          for (const result of newsResults) {
+            // Stop se abbiamo già salvato abbastanza nuovi contenuti per questa keyword
+            if (savedForKeyword >= MAX_RESULTS_PER_KEYWORD) {
+              console.log(`⏹️ Raggiunto limite di ${MAX_RESULTS_PER_KEYWORD} nuovi contenuti per "${keyword}"`);
+              break;
+            }
+
             try {
+              // Verifica se già esiste (non conta nel limite)
               const existing = await prisma.contenutiMonitorati.findFirst({
                 where: {
                   url: result.url,
@@ -154,7 +161,7 @@ export async function POST(request: NextRequest) {
               });
 
               if (existing) {
-                continue;
+                continue; // Salta ma NON conta nel limite
               }
 
               const contentAnalysis = processContentForMonitoring(
@@ -192,6 +199,7 @@ export async function POST(request: NextRequest) {
                 }
               });
 
+              savedForKeyword++;
               totalNewContents++;
             } catch (itemError) {
               console.error('Errore salvando contenuto:', itemError);

@@ -764,11 +764,13 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
                 <div className="flex gap-2">
                   {contenuto.url && (
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
                       onClick={() => window.open(contenuto.url, '_blank')}
+                      className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
                     >
-                      <ExternalLink className="w-4 h-4" />
+                      <ExternalLink className="w-4 h-4 mr-1" />
+                      Leggi articolo
                     </Button>
                   )}
                 </div>
