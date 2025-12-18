@@ -121,15 +121,49 @@ export function analyzeSentimentBase(text: string): {
   const lowerText = text.toLowerCase();
   
   const positiveWords = [
+    // Aggettivi positivi generali
     'ottimo', 'eccellente', 'buono', 'fantastico', 'delizioso', 'perfetto',
-    'consiglio', 'meraviglioso', 'stupendo', 'genuino', 'autentico', 'tradizionale',
-    'qualità', 'premium', 'fresco', 'naturale', 'bio', 'biologico'
+    'meraviglioso', 'stupendo', 'magnifico', 'straordinario', 'splendido',
+    'incredibile', 'notevole', 'pregevole', 'raffinato', 'sublime',
+    // Qualità prodotto
+    'genuino', 'autentico', 'tradizionale', 'artigianale', 'pregiato',
+    'qualità', 'premium', 'fresco', 'naturale', 'bio', 'biologico',
+    'certificato', 'garantito', 'originale', 'puro', 'integro',
+    // Gusto e aroma (olio)
+    'fruttato', 'aromatico', 'profumato', 'saporito', 'gustoso',
+    'delicato', 'equilibrato', 'intenso', 'fragrante', 'vellutato',
+    // Raccomandazioni
+    'consiglio', 'consigliato', 'raccomando', 'raccomandato', 'imperdibile',
+    'da provare', 'vale la pena', 'soddisfatto', 'soddisfazione',
+    // Successo e riconoscimenti
+    'premiato', 'vincitore', 'riconoscimento', 'eccellenza', 'premio',
+    'medaglia', 'primo posto', 'migliore', 'top', 'leader',
+    // Positivi news/settore
+    'crescita', 'sviluppo', 'innovazione', 'successo', 'traguardo',
+    'investimento', 'opportunità', 'valorizzazione', 'tutela', 'promozione'
   ];
-  
+
   const negativeWords = [
-    'pessimo', 'terribile', 'cattivo', 'disgustoso', 'amaro', 'rancido',
-    'scaduto', 'caro', 'costoso', 'deludente', 'insapore', 'artificiale',
-    'industriale', 'scarsa qualità', 'non consiglio', 'evitate'
+    // Aggettivi negativi generali
+    'pessimo', 'terribile', 'cattivo', 'disgustoso', 'orribile',
+    'scarso', 'mediocre', 'scadente', 'insufficiente', 'inadeguato',
+    'deludente', 'insoddisfacente', 'inaccettabile', 'vergognoso',
+    // Qualità prodotto negativa
+    'amaro', 'rancido', 'scaduto', 'alterato', 'deteriorato',
+    'contraffatto', 'adulterato', 'falsificato', 'imitazione', 'falso',
+    'insapore', 'artificiale', 'industriale', 'chimico', 'sintetico',
+    // Prezzi e valore
+    'caro', 'costoso', 'esagerato', 'sopravvalutato', 'non vale',
+    // Problemi e criticità
+    'frode', 'truffa', 'inganno', 'scandalo', 'illecito', 'illegale',
+    'sequestro', 'sequestrato', 'confisca', 'confiscato', 'multa',
+    'sanzione', 'violazione', 'irregolarità', 'non conforme',
+    // Raccomandazioni negative
+    'non consiglio', 'evitate', 'evitare', 'sconsiglio', 'sconsigliato',
+    'da evitare', 'non comprare', 'non acquistare', 'bocciato',
+    // Negativi news/settore
+    'crisi', 'calo', 'perdita', 'fallimento', 'chiusura', 'denuncia',
+    'problema', 'difficoltà', 'rischio', 'allarme', 'emergenza'
   ];
 
   let positiveScore = 0;

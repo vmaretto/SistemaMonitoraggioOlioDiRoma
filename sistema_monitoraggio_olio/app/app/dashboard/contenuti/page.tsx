@@ -74,6 +74,7 @@ export default function ContenutiMonitoratiPage() {
   const [testingAI, setTestingAI] = useState(false);
   const [loadingDemo, setLoadingDemo] = useState(false);
   const [testingProviders, setTestingProviders] = useState(false);
+  const [reanalyzing, setReanalyzing] = useState(false);
   
   // Provider status
   const [providers, setProviders] = useState<ProviderStatus[]>([]);
@@ -321,15 +322,51 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
       const response = await fetch('/api/contenuti/demo', {
         method: 'POST'
       });
-      
+
       if (!response.ok) throw new Error('Errore nel caricamento demo');
-      
+
       await fetchContenuti();
       alert('✅ Dati demo caricati con successo!');
     } catch (error) {
       alert('❌ Errore durante il caricamento dati demo');
     } finally {
       setLoadingDemo(false);
+    }
+  };
+
+  const reanalyzeWithAI = async () => {
+    try {
+      setReanalyzing(true);
+      const response = await fetch('/api/contenuti/reanalyze-ai', {
+        method: 'POST'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Errore nella ri-analisi');
+      }
+
+      const data = await response.json();
+
+      // Ricarica contenuti dopo la ri-analisi
+      await fetchContenuti();
+
+      const message = `✅ Ri-analisi AI completata!\n\n` +
+        `📊 Risultati:\n` +
+        `• Totale contenuti: ${data.total}\n` +
+        `• Analizzati con AI: ${data.analyzed}\n` +
+        `• Già analizzati: ${data.skipped}\n` +
+        `• Errori: ${data.errors}\n` +
+        `• Rimanenti: ${data.remaining}\n` +
+        `• Tempo: ${data.duration}\n\n` +
+        (data.remaining > 0 ? '⚠️ Premi di nuovo per analizzare i rimanenti.' : '✅ Tutti i contenuti sono stati analizzati!');
+
+      alert(message);
+    } catch (error) {
+      console.error('Errore ri-analisi AI:', error);
+      alert(`❌ Errore durante la ri-analisi AI\n\n${error instanceof Error ? error.message : 'Errore sconosciuto'}`);
+    } finally {
+      setReanalyzing(false);
     }
   };
 
@@ -572,7 +609,7 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
           >
             {testingProviders ? '⏳ Testing...' : '🔧 Test Provider'}
           </Button>
-          <Button 
+          <Button
             onClick={testAIAnalysis}
             disabled={testingAI}
             variant="outline"
@@ -580,7 +617,16 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
           >
             {testingAI ? '⏳ Testing...' : '🤖 Test AI'}
           </Button>
-          <Button 
+          <Button
+            onClick={reanalyzeWithAI}
+            disabled={reanalyzing}
+            variant="outline"
+            size="sm"
+            className="bg-purple-50 hover:bg-purple-100 border-purple-300 text-purple-700"
+          >
+            {reanalyzing ? '⏳ Ri-analizzando...' : '🧠 Ri-analizza con AI'}
+          </Button>
+          <Button
             onClick={loadDemoData}
             disabled={loadingDemo}
             variant="outline"
@@ -695,12 +741,6 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
                       <Badge variant="outline" className={getSentimentColor(contenuto.sentiment)}>
                         {contenuto.sentiment}
                       </Badge>
-                      <span className="text-sm text-gray-600">
-                        Rilevanza: {contenuto.rilevanza}%
-                      </span>
-                      <span className="text-sm text-gray-600">
-                        Score: {contenuto.sentimentScore.toFixed(2)}
-                      </span>
                     </div>
                     
                     {/* DOPPIA ANALISI SENTIMENT */}
