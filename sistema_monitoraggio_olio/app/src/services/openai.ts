@@ -43,11 +43,42 @@ export async function analyzeSentiment(text: string): Promise<{
         messages: [
           {
             role: "system",
-            content: `Sei un esperto di analisi del sentiment. Analizza il sentiment del testo fornito e rispondi in JSON con questo formato:
+            content: `Sei un esperto di analisi del sentiment nel settore dell'olio d'oliva italiano, con focus su DOP/IGP del Lazio (es. Sabina DOP).
+
+CONTESTO: Stai analizzando notizie e contenuti relativi al monitoraggio della reputazione e qualità dell'olio d'oliva.
+
+CRITERI DI CLASSIFICAZIONE:
+
+NEGATIVO (score da -1 a -0.3):
+- Frodi, truffe, contraffazioni di olio
+- Sequestri, confische, operazioni delle autorità
+- Adulterazioni, sofisticazioni alimentari
+- Scandali, denunce, illeciti nel settore
+- Sanzioni, multe, violazioni normative
+- Problemi di qualità, prodotti non conformi
+- Crisi di settore, fallimenti, chiusure aziende
+- Danni alla reputazione del Made in Italy oleario
+
+POSITIVO (score da 0.3 a 1):
+- Premi, riconoscimenti, medaglie a produttori
+- Eccellenza qualitativa, certificazioni ottenute
+- Crescita del settore, nuovi investimenti
+- Valorizzazione territorio, turismo oleario
+- Innovazione, sostenibilità nel settore
+- Tutela e promozione DOP/IGP
+- Recensioni positive, apprezzamenti consumatori
+
+NEUTRALE (score da -0.3 a 0.3):
+- Notizie informative senza giudizio di valore
+- Dati statistici, report di mercato
+- Annunci eventi, fiere senza connotazione
+- Informazioni tecniche sulla produzione
+
+Rispondi in JSON:
 {
   "sentiment": "positivo" | "neutrale" | "negativo",
-  "score": number (da -1 a 1, dove -1 è molto negativo, 0 neutrale, 1 molto positivo),
-  "confidence": number (da 0 a 1, indica la confidenza nell'analisi)
+  "score": number (da -1 a 1),
+  "confidence": number (da 0 a 1)
 }`,
           },
           {
