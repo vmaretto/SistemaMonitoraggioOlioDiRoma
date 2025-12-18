@@ -164,20 +164,27 @@ export async function POST(request: NextRequest) {
                 continue; // Salta ma NON conta nel limite
               }
 
+              // Calcola keywords e relevance (ma NON usiamo shouldMonitor - i risultati SerpAPI sono già rilevanti)
               const contentAnalysis = processContentForMonitoring(
                 result.snippet || result.title,
                 keywordList
               );
 
-              if (!contentAnalysis.shouldMonitor) {
-                continue;
-              }
+              // Se non trova keywords nel testo, usa almeno la keyword cercata
+              const finalKeywords = contentAnalysis.keywords.length > 0
+                ? contentAnalysis.keywords
+                : [keyword];
+
+              // Se relevance è 0, assegna un valore base (50 = media)
+              const finalRelevance = contentAnalysis.relevance > 0
+                ? contentAnalysis.relevance
+                : 50;
 
               // Usa analisi BASE (senza AI) per velocizzare la sincronizzazione bulk
               const sentimentResult = analyzeSentimentBase(result.snippet || result.title);
 
               // Log per debug del contenuto da salvare
-              console.log(`💾 Salvando: "${(result.title || '').substring(0, 50)}..." - Rilevanza: ${contentAnalysis.relevance}`);
+              console.log(`💾 Salvando: "${(result.title || '').substring(0, 50)}..." - Rilevanza: ${finalRelevance}`);
 
               await prisma.contenutiMonitorati.create({
                 data: {
@@ -187,9 +194,9 @@ export async function POST(request: NextRequest) {
                   url: result.url || null,
                   sentiment: sentimentResult.sentiment || 'neutrale',
                   sentimentScore: typeof sentimentResult.score === 'number' ? sentimentResult.score : 0,
-                  keywords: contentAnalysis.keywords || [],
+                  keywords: finalKeywords,
                   dataPost: parseDate(result.date),
-                  rilevanza: Math.round(contentAnalysis.relevance || 0),
+                  rilevanza: Math.round(finalRelevance),
                   metadata: {
                     sentimentAnalysis: {
                       method: sentimentResult.method,
