@@ -75,7 +75,8 @@ export default function ContenutiMonitoratiPage() {
   const [loadingDemo, setLoadingDemo] = useState(false);
   const [testingProviders, setTestingProviders] = useState(false);
   const [reanalyzing, setReanalyzing] = useState(false);
-  
+  const [testAIText, setTestAIText] = useState('');
+
   // Provider status
   const [providers, setProviders] = useState<ProviderStatus[]>([]);
   
@@ -278,13 +279,16 @@ export default function ContenutiMonitoratiPage() {
   };
 
   const testAIAnalysis = async () => {
+    const testoDefault = 'Olio eccellente del Consorzio Roma-Lazio, qualità premium DOP';
+    const testoAnalisi = testAIText.trim() || testoDefault;
+
     setTestingAI(true);
     try {
       const response = await fetch('/api/sentiment-analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          testo: 'Olio eccellente del Consorzio Roma-Lazio, qualità premium DOP',
+          testo: testoAnalisi,
           keywords: ['olio', 'Roma', 'Lazio', 'DOP', 'consorzio'],
           compareMode: true
         })
@@ -293,15 +297,18 @@ export default function ContenutiMonitoratiPage() {
       if (!response.ok) throw new Error('Test fallito');
 
       const data = await response.json();
-      
+
       alert(`✅ Test AI completato!
+
+📝 TESTO ANALIZZATO:
+"${testoAnalisi.substring(0, 100)}${testoAnalisi.length > 100 ? '...' : ''}"
 
 📊 ANALISI BASE (Keyword Matching):
 Sentiment: ${data.base?.sentiment || 'N/A'}
 Score: ${data.base?.score?.toFixed(2) || 'N/A'}
 Confidence: ${(data.base?.confidence * 100)?.toFixed(0) || 'N/A'}%
 
-🤖 ANALISI AI (OpenAI GPT-5):
+🤖 ANALISI AI (OpenAI GPT-4-turbo):
 Sentiment: ${data.ai?.sentiment || 'N/A'}
 Score: ${data.ai?.score?.toFixed(2) || 'N/A'}
 Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
@@ -601,21 +608,13 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
               </>
             )}
           </Button>
-          <Button 
+          <Button
             onClick={testProviders}
             disabled={testingProviders}
             variant="outline"
             size="sm"
           >
             {testingProviders ? '⏳ Testing...' : '🔧 Test Provider'}
-          </Button>
-          <Button
-            onClick={testAIAnalysis}
-            disabled={testingAI}
-            variant="outline"
-            size="sm"
-          >
-            {testingAI ? '⏳ Testing...' : '🤖 Test AI'}
           </Button>
           <Button
             onClick={reanalyzeWithAI}
@@ -633,6 +632,24 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
             size="sm"
           >
             {loadingDemo ? '⏳ Loading...' : '📊 Carica Dati Demo'}
+          </Button>
+        </div>
+
+        {/* Test AI con input personalizzato */}
+        <div className="flex gap-2 mt-3 items-center">
+          <Input
+            placeholder="Inserisci testo da analizzare (es: Sequestro olio contraffatto in Lazio)"
+            value={testAIText}
+            onChange={(e) => setTestAIText(e.target.value)}
+            className="flex-1"
+          />
+          <Button
+            onClick={testAIAnalysis}
+            disabled={testingAI}
+            variant="outline"
+            size="sm"
+          >
+            {testingAI ? '⏳ Testing...' : '🤖 Test AI'}
           </Button>
         </div>
       </Card>
