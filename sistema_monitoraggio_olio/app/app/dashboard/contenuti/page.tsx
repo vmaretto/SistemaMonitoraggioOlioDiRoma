@@ -627,27 +627,20 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
         </div>
       </Card>
 
-      {/* Provider Status */}
-      {providers.length > 0 && (
+      {/* Provider Attivi */}
+      {providers.filter(p => p.status === 'active').length > 0 && (
         <Card className="p-6 mb-6 bg-green-50 border-green-200">
           <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
             <CheckCircle className="w-5 h-5 text-green-600" />
-            Multi-Provider: Attivo
+            Provider Attivi
           </h3>
           <div className="text-sm">
-            <p className="mb-2">{providers.filter(p => p.status === 'active').length}/{providers.length} provider funzionanti</p>
             <div className="flex flex-wrap gap-2">
-              {providers.map((provider, index) => (
-                <Badge 
+              {providers.filter(p => p.status === 'active').map((provider, index) => (
+                <Badge
                   key={index}
                   variant="outline"
-                  className={
-                    provider.status === 'active' 
-                      ? 'bg-green-100 text-green-800 border-green-300'
-                      : provider.status === 'error'
-                      ? 'bg-red-100 text-red-800 border-red-300'
-                      : 'bg-gray-100 text-gray-800 border-gray-300'
-                  }
+                  className="bg-green-100 text-green-800 border-green-300"
                 >
                   {getProviderIcon(provider.status)}
                   <span className="ml-1">{provider.name}</span>

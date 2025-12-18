@@ -7,12 +7,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertTriangle, CheckCircle, Clock, Filter, MoreHorizontal } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, Filter, MoreHorizontal, FileText, ExternalLink } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 
 interface AlertItem {
   id: string;
@@ -33,6 +45,15 @@ export default function AlertPage() {
   const [filter, setFilter] = useState('all');
   const router = useRouter();
 
+  // Stato per dialog risoluzione
+  const [showResolveDialog, setShowResolveDialog] = useState(false);
+  const [selectedAlert, setSelectedAlert] = useState<AlertItem | null>(null);
+  const [createReport, setCreateReport] = useState(true);
+  const [reportTitle, setReportTitle] = useState('');
+  const [reportNotes, setReportNotes] = useState('');
+  const [resolving, setResolving] = useState(false);
+  const [newReportId, setNewReportId] = useState<string | null>(null);
+
   useEffect(() => {
     fetchAlerts();
   }, []);
@@ -49,22 +70,71 @@ export default function AlertPage() {
     }
   };
 
-  const risolviAlert = async (id: string) => {
+  const openResolveDialog = (alert: AlertItem) => {
+    setSelectedAlert(alert);
+    setReportTitle(`Report: ${alert.titolo}`);
+    setReportNotes(`Alert risolto il ${format(new Date(), 'PPp', { locale: it })}\n\nDescrizione originale:\n${alert.descrizione}`);
+    setCreateReport(true);
+    setNewReportId(null);
+    setShowResolveDialog(true);
+  };
+
+  const risolviAlert = async () => {
+    if (!selectedAlert) return;
+    setResolving(true);
+
     try {
-      const response = await fetch(`/api/alert/${id}`, {
+      // Se richiesto, crea prima il report
+      if (createReport) {
+        const reportResponse = await fetch('/api/reports', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            titolo: reportTitle,
+            descrizione: reportNotes,
+            tipo: 'ispezione',
+            stato: 'bozza',
+            alertId: selectedAlert.id,
+            fonte: selectedAlert.fonte || 'Alert Sistema'
+          })
+        });
+
+        if (reportResponse.ok) {
+          const reportData = await reportResponse.json();
+          setNewReportId(reportData.report?.id || null);
+        } else {
+          console.error('Errore nella creazione del report');
+        }
+      }
+
+      // Risolvi l'alert
+      const response = await fetch(`/api/alert/${selectedAlert.id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isRisolto: true })
       });
 
       if (response.ok) {
         fetchAlerts();
+        if (!createReport) {
+          setShowResolveDialog(false);
+          setSelectedAlert(null);
+        }
       }
     } catch (error) {
       console.error('Errore risoluzione alert:', error);
+    } finally {
+      setResolving(false);
     }
+  };
+
+  const goToReport = () => {
+    if (newReportId) {
+      router.push(`/dashboard/tracciabilita?reportId=${newReportId}`);
+    }
+    setShowResolveDialog(false);
+    setSelectedAlert(null);
+    setNewReportId(null);
   };
 
   const getPriorityColor = (priorita: string) => {
@@ -220,13 +290,15 @@ export default function AlertPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem 
-                          onClick={() => risolviAlert(alert.id)}
+                        <DropdownMenuItem
+                          onClick={() => openResolveDialog(alert)}
                           disabled={alert.isRisolto}
                         >
-                          Segna come risolto
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Risolvi e crea report
                         </DropdownMenuItem>
                         <DropdownMenuItem>
+                          <FileText className="h-4 w-4 mr-2" />
                           Visualizza dettagli
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -250,11 +322,12 @@ export default function AlertPage() {
                     </Alert>
                   )}
                   {!alert.isRisolto && (
-                    <Button 
-                      onClick={() => risolviAlert(alert.id)}
+                    <Button
+                      onClick={() => openResolveDialog(alert)}
                       size="sm"
                       className="mt-2"
                     >
+                      <FileText className="h-4 w-4 mr-2" />
                       Risolvi Alert
                     </Button>
                   )}
@@ -264,6 +337,126 @@ export default function AlertPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Dialog Risoluzione Alert */}
+      <Dialog open={showResolveDialog} onOpenChange={(open) => {
+        if (!open && !newReportId) {
+          setShowResolveDialog(false);
+          setSelectedAlert(null);
+        } else if (!open && newReportId) {
+          setShowResolveDialog(false);
+          setSelectedAlert(null);
+          setNewReportId(null);
+        } else {
+          setShowResolveDialog(open);
+        }
+      }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {newReportId ? 'Alert Risolto' : 'Risolvi Alert'}
+            </DialogTitle>
+            <DialogDescription>
+              {newReportId
+                ? 'L\'alert è stato risolto e il report è stato creato con successo.'
+                : 'Conferma la risoluzione dell\'alert e opzionalmente crea un report di tracciabilità.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {newReportId ? (
+            <div className="py-4">
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                  <p className="text-green-800 font-medium">Report creato con successo</p>
+                </div>
+                <p className="text-sm text-green-700 mt-2">
+                  Il report è stato creato nella sezione Tracciabilità Ispettori.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4 py-4">
+              {selectedAlert && (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="font-medium">{selectedAlert.titolo}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{selectedAlert.descrizione}</p>
+                </div>
+              )}
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="createReport"
+                  checked={createReport}
+                  onCheckedChange={(checked) => setCreateReport(checked as boolean)}
+                />
+                <Label htmlFor="createReport" className="cursor-pointer">
+                  Crea report di tracciabilità
+                </Label>
+              </div>
+
+              {createReport && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="reportTitle">Titolo Report</Label>
+                    <Input
+                      id="reportTitle"
+                      value={reportTitle}
+                      onChange={(e) => setReportTitle(e.target.value)}
+                      placeholder="Titolo del report"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="reportNotes">Note / Descrizione</Label>
+                    <Textarea
+                      id="reportNotes"
+                      value={reportNotes}
+                      onChange={(e) => setReportNotes(e.target.value)}
+                      rows={5}
+                      placeholder="Aggiungi note o descrizione..."
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            {newReportId ? (
+              <>
+                <Button variant="outline" onClick={() => {
+                  setShowResolveDialog(false);
+                  setSelectedAlert(null);
+                  setNewReportId(null);
+                }}>
+                  Chiudi
+                </Button>
+                <Button onClick={goToReport}>
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Vai al Report
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => {
+                  setShowResolveDialog(false);
+                  setSelectedAlert(null);
+                }}>
+                  Annulla
+                </Button>
+                <Button onClick={risolviAlert} disabled={resolving}>
+                  {resolving ? 'Risoluzione...' : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      {createReport ? 'Risolvi e Crea Report' : 'Risolvi Alert'}
+                    </>
+                  )}
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

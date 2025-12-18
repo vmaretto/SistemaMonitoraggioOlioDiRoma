@@ -7,19 +7,15 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { 
-  LayoutDashboard, 
-  Search, 
-  Shield, 
-  AlertTriangle, 
-  Settings, 
+import {
+  LayoutDashboard,
+  Search,
+  Shield,
+  AlertTriangle,
+  Settings,
   TrendingUp,
   FileText,
-  Bell,
-  Users,
   Database,
-  BarChart3,
-  Globe,
   ClipboardList,
   Eye,
   CheckCircle
@@ -69,20 +65,9 @@ const sidebarItems = [
     ],
   },
   {
-    title: 'Alert & Notifiche',
+    title: 'Alert',
+    href: '/dashboard/alert',
     icon: AlertTriangle,
-    items: [
-      {
-        title: 'Alert Attivi',
-        href: '/dashboard/alert',
-        icon: AlertTriangle,
-      },
-      {
-        title: 'Notifiche',
-        href: '/dashboard/notifiche',
-        icon: Bell,
-      },
-    ],
   },
   {
     title: 'Tracciabilità Ispettori',
@@ -104,11 +89,6 @@ const sidebarItems = [
         icon: CheckCircle,
       },
     ],
-  },
-  {
-    title: 'Report & Export',
-    href: '/dashboard/report',
-    icon: BarChart3,
   },
   {
     title: 'Configurazioni',
