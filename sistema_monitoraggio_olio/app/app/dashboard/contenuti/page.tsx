@@ -72,7 +72,6 @@ export default function ContenutiMonitoratiPage() {
   const [syncing, setSyncing] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [testingAI, setTestingAI] = useState(false);
-  const [loadingDemo, setLoadingDemo] = useState(false);
   const [testingProviders, setTestingProviders] = useState(false);
   const [reanalyzing, setReanalyzing] = useState(false);
   const [testAIText, setTestAIText] = useState('');
@@ -320,24 +319,6 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
       alert(`❌ Errore: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setTestingAI(false);
-    }
-  };
-
-  const loadDemoData = async () => {
-    try {
-      setLoadingDemo(true);
-      const response = await fetch('/api/contenuti/demo', {
-        method: 'POST'
-      });
-
-      if (!response.ok) throw new Error('Errore nel caricamento demo');
-
-      await fetchContenuti();
-      alert('✅ Dati demo caricati con successo!');
-    } catch (error) {
-      alert('❌ Errore durante il caricamento dati demo');
-    } finally {
-      setLoadingDemo(false);
     }
   };
 
@@ -624,14 +605,6 @@ Confidence: ${(data.ai?.confidence * 100)?.toFixed(0) || 'N/A'}%
             className="bg-purple-50 hover:bg-purple-100 border-purple-300 text-purple-700"
           >
             {reanalyzing ? '⏳ Ri-analizzando...' : '🧠 Ri-analizza con AI'}
-          </Button>
-          <Button
-            onClick={loadDemoData}
-            disabled={loadingDemo}
-            variant="outline"
-            size="sm"
-          >
-            {loadingDemo ? '⏳ Loading...' : '📊 Carica Dati Demo'}
           </Button>
         </div>
 

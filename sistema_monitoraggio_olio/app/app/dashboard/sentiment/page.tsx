@@ -53,13 +53,35 @@ export default function SentimentPage() {
   });
   const [selectedKeyword, setSelectedKeyword] = useState('all');
   const [selectedPiattaforma, setSelectedPiattaforma] = useState('all');
+  const [availableKeywords, setAvailableKeywords] = useState<string[]>([]);
+  const [availablePiattaforme, setAvailablePiattaforme] = useState<string[]>([]);
   const router = useRouter();
+
+  // Carica keywords attive all'avvio
+  useEffect(() => {
+    fetchAvailableKeywords();
+  }, []);
 
   useEffect(() => {
     if (dateRange?.from && dateRange?.to) {
       fetchSentimentData();
     }
   }, [dateRange, selectedKeyword, selectedPiattaforma]);
+
+  const fetchAvailableKeywords = async () => {
+    try {
+      const response = await fetch('/api/keywords');
+      if (response.ok) {
+        const data = await response.json();
+        const keywords = data.keywords
+          ?.filter((k: any) => k.isActive)
+          ?.map((k: any) => k.keyword) || [];
+        setAvailableKeywords(keywords);
+      }
+    } catch (error) {
+      console.error('Errore caricamento keywords:', error);
+    }
+  };
 
   const fetchSentimentData = async () => {
     if (!dateRange?.from || !dateRange?.to) return;
@@ -75,10 +97,16 @@ export default function SentimentPage() {
 
       const response = await fetch(`/api/sentiment-analysis?${params}`);
       const data = await response.json();
-      
+
       setSentimentData(data.timeline || []);
       setKeywordData(data.keywords || []);
       setPiattaformaData(data.piattaforme || []);
+
+      // Aggiorna piattaforme disponibili dai dati
+      if (data.piattaforme && data.piattaforme.length > 0) {
+        const piattaformeNames = data.piattaforme.map((p: any) => p.piattaforma);
+        setAvailablePiattaforme(piattaformeNames);
+      }
     } catch (error) {
       console.error('Errore caricamento dati sentiment:', error);
     } finally {
@@ -183,9 +211,9 @@ export default function SentimentPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tutte le keywords</SelectItem>
-                  <SelectItem value="Olio Roma">Olio Roma</SelectItem>
-                  <SelectItem value="Olio Lazio">Olio Lazio</SelectItem>
-                  <SelectItem value="DOP Sabina">DOP Sabina</SelectItem>
+                  {availableKeywords.map((kw) => (
+                    <SelectItem key={kw} value={kw}>{kw}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -197,10 +225,9 @@ export default function SentimentPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tutte le piattaforme</SelectItem>
-                  <SelectItem value="facebook">Facebook</SelectItem>
-                  <SelectItem value="twitter">Twitter</SelectItem>
-                  <SelectItem value="instagram">Instagram</SelectItem>
-                  <SelectItem value="amazon">Amazon</SelectItem>
+                  {availablePiattaforme.map((plat) => (
+                    <SelectItem key={plat} value={plat}>{plat}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

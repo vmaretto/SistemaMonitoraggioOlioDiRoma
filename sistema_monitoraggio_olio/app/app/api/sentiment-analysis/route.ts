@@ -3,11 +3,158 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import OpenAI from 'openai';
 import { analyzeSentimentBase, compareAnalysisMethods } from '@/lib/keyword-matching';
+import { prisma } from '@/lib/db';
+import { format, startOfDay, endOfDay } from 'date-fns';
 
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * GET - Recupera statistiche aggregate del sentiment dai contenuti monitorati
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session) {
+      return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const inizio = searchParams.get('inizio');
+    const fine = searchParams.get('fine');
+    const keyword = searchParams.get('keyword');
+    const piattaforma = searchParams.get('piattaforma');
+
+    // Query contenuti con filtri
+    const whereClause: any = {};
+
+    if (inizio || fine) {
+      whereClause.dataPost = {};
+      if (inizio) whereClause.dataPost.gte = new Date(inizio);
+      if (fine) whereClause.dataPost.lte = new Date(fine);
+    }
+
+    if (piattaforma && piattaforma !== 'all') {
+      whereClause.piattaforma = piattaforma;
+    }
+
+    const contenuti = await prisma.contenutiMonitorati.findMany({
+      where: whereClause,
+      orderBy: { dataPost: 'asc' }
+    });
+
+    // Filtra per keyword se specificata (Prisma non supporta has su array per tutti i DB)
+    let filteredContenuti = contenuti;
+    if (keyword && keyword !== 'all') {
+      filteredContenuti = contenuti.filter(c =>
+        c.keywords.some(k => k.toLowerCase().includes(keyword.toLowerCase()))
+      );
+    }
+
+    // Aggrega per timeline (per giorno)
+    const timelineMap = new Map<string, { positivi: number; neutri: number; negativi: number; scores: number[] }>();
+
+    filteredContenuti.forEach(c => {
+      const dateKey = format(new Date(c.dataPost), 'yyyy-MM-dd');
+
+      if (!timelineMap.has(dateKey)) {
+        timelineMap.set(dateKey, { positivi: 0, neutri: 0, negativi: 0, scores: [] });
+      }
+
+      const entry = timelineMap.get(dateKey)!;
+      entry.scores.push(c.sentimentScore);
+
+      if (c.sentiment === 'positivo') entry.positivi++;
+      else if (c.sentiment === 'negativo') entry.negativi++;
+      else entry.neutri++;
+    });
+
+    const timeline = Array.from(timelineMap.entries()).map(([date, data]) => ({
+      date,
+      positivi: data.positivi,
+      neutri: data.neutri,
+      negativi: data.negativi,
+      media: data.scores.length > 0
+        ? data.scores.reduce((a, b) => a + b, 0) / data.scores.length
+        : 0
+    }));
+
+    // Aggrega per keyword
+    const keywordMap = new Map<string, { positivi: number; neutri: number; negativi: number; scores: number[] }>();
+
+    filteredContenuti.forEach(c => {
+      c.keywords.forEach(kw => {
+        if (!keywordMap.has(kw)) {
+          keywordMap.set(kw, { positivi: 0, neutri: 0, negativi: 0, scores: [] });
+        }
+
+        const entry = keywordMap.get(kw)!;
+        entry.scores.push(c.sentimentScore);
+
+        if (c.sentiment === 'positivo') entry.positivi++;
+        else if (c.sentiment === 'negativo') entry.negativi++;
+        else entry.neutri++;
+      });
+    });
+
+    const keywords = Array.from(keywordMap.entries()).map(([kw, data]) => ({
+      keyword: kw,
+      positivi: data.positivi,
+      neutri: data.neutri,
+      negativi: data.negativi,
+      totali: data.positivi + data.neutri + data.negativi,
+      media: data.scores.length > 0
+        ? data.scores.reduce((a, b) => a + b, 0) / data.scores.length
+        : 0
+    })).sort((a, b) => b.totali - a.totali);
+
+    // Aggrega per piattaforma
+    const piattaformaMap = new Map<string, { positivi: number; neutri: number; negativi: number; scores: number[] }>();
+
+    filteredContenuti.forEach(c => {
+      const plat = c.piattaforma || 'unknown';
+
+      if (!piattaformaMap.has(plat)) {
+        piattaformaMap.set(plat, { positivi: 0, neutri: 0, negativi: 0, scores: [] });
+      }
+
+      const entry = piattaformaMap.get(plat)!;
+      entry.scores.push(c.sentimentScore);
+
+      if (c.sentiment === 'positivo') entry.positivi++;
+      else if (c.sentiment === 'negativo') entry.negativi++;
+      else entry.neutri++;
+    });
+
+    const piattaforme = Array.from(piattaformaMap.entries()).map(([plat, data]) => ({
+      piattaforma: plat,
+      positivi: data.positivi,
+      neutri: data.neutri,
+      negativi: data.negativi,
+      totali: data.positivi + data.neutri + data.negativi,
+      media: data.scores.length > 0
+        ? data.scores.reduce((a, b) => a + b, 0) / data.scores.length
+        : 0
+    })).sort((a, b) => b.totali - a.totali);
+
+    return NextResponse.json({
+      timeline,
+      keywords,
+      piattaforme,
+      totale: filteredContenuti.length
+    });
+
+  } catch (error) {
+    console.error('Errore nel recupero statistiche sentiment:', error);
+    return NextResponse.json({
+      error: 'Errore nel recupero delle statistiche',
+      details: error instanceof Error ? error.message : 'Errore sconosciuto'
+    }, { status: 500 });
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
