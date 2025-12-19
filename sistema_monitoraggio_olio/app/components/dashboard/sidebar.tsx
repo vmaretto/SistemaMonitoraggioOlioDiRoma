@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   Search,
   Shield,
-  AlertTriangle,
   Settings,
   TrendingUp,
   FileText,
@@ -63,11 +62,6 @@ const sidebarItems = [
         icon: Shield,
       },
     ],
-  },
-  {
-    title: 'Alert',
-    href: '/dashboard/alert',
-    icon: AlertTriangle,
   },
   {
     title: 'Tracciabilità Ispettori',

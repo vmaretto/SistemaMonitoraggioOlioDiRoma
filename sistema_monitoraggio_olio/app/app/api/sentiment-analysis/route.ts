@@ -4,10 +4,20 @@ import { authOptions } from '@/lib/auth';
 import OpenAI from 'openai';
 import { analyzeSentimentBase, compareAnalysisMethods } from '@/lib/keyword-matching';
 import { prisma } from '@/lib/db';
-import { format, startOfDay, endOfDay } from 'date-fns';
+import { format } from 'date-fns';
 
-// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Lazy initialization to avoid build errors when API key is not set
+let openaiInstance: OpenAI | null = null;
+
+function getOpenAI(): OpenAI {
+  if (!openaiInstance) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY environment variable is not set');
+    }
+    openaiInstance = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return openaiInstance;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -183,7 +193,7 @@ export async function POST(request: NextRequest) {
     // Modalità normale: solo AI (comportamento originale)
     
     // Chiamata a OpenAI per sentiment analysis
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: "gpt-5",
       messages: [
         {

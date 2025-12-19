@@ -1,6 +1,7 @@
 
 'use client';
 
+import { useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,33 +12,85 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Bell, LogOut, Settings, User, Shield } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { LogOut, Key } from 'lucide-react';
 
 export function Header() {
   const { data: session } = useSession() || {};
-  const router = useRouter();
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const handleLogout = () => {
     signOut({ callbackUrl: '/' });
   };
 
-  const handleNotifications = () => {
-    router.push('/dashboard/notifiche');
+  const openPasswordDialog = () => {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordError(null);
+    setPasswordSuccess(false);
+    setShowPasswordDialog(true);
   };
 
-  const handleProfile = () => {
-    router.push('/dashboard/configurazioni');
-  };
+  const handleChangePassword = async () => {
+    setPasswordError(null);
 
-  const handleSettings = () => {
-    router.push('/dashboard/configurazioni');
-  };
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError('Tutti i campi sono obbligatori');
+      return;
+    }
 
-  const handleAdmin = () => {
-    router.push('/dashboard/configurazioni');
+    if (newPassword.length < 6) {
+      setPasswordError('La nuova password deve essere di almeno 6 caratteri');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Le password non coincidono');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const response = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setPasswordError(data.error || 'Errore nel cambio password');
+        return;
+      }
+
+      setPasswordSuccess(true);
+      setTimeout(() => {
+        setShowPasswordDialog(false);
+        setPasswordSuccess(false);
+      }, 2000);
+    } catch {
+      setPasswordError('Errore di connessione');
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   const getUserInitials = (name?: string | null) => {
@@ -64,17 +117,6 @@ export function Header() {
       </div>
 
       <div className="flex items-center space-x-4">
-        {/* Notifications */}
-        <Button variant="ghost" size="sm" className="relative" onClick={handleNotifications}>
-          <Bell className="h-4 w-4" />
-          <Badge
-            variant="destructive"
-            className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
-          >
-            3
-          </Badge>
-        </Button>
-
         {/* User Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -86,7 +128,9 @@ export function Header() {
               </Avatar>
               <div className="text-left">
                 <p className="text-sm font-medium">{session?.user?.name || 'Utente'}</p>
-                <p className="text-xs text-gray-500">{session?.user?.role || 'user'}</p>
+                <p className="text-xs text-gray-500">
+                  {session?.user?.role === 'ADMIN' ? 'Amministratore' : 'Operatore'}
+                </p>
               </div>
             </Button>
           </DropdownMenuTrigger>
@@ -101,20 +145,10 @@ export function Header() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer" onClick={handleProfile}>
-              <User className="mr-2 h-4 w-4" />
-              Profilo
+            <DropdownMenuItem className="cursor-pointer" onClick={openPasswordDialog}>
+              <Key className="mr-2 h-4 w-4" />
+              Cambia Password
             </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer" onClick={handleSettings}>
-              <Settings className="mr-2 h-4 w-4" />
-              Impostazioni
-            </DropdownMenuItem>
-            {session?.user?.role === 'direttore' && (
-              <DropdownMenuItem className="cursor-pointer" onClick={handleAdmin}>
-                <Shield className="mr-2 h-4 w-4" />
-                Amministrazione
-              </DropdownMenuItem>
-            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="cursor-pointer text-red-600 focus:text-red-600"
@@ -126,6 +160,72 @@ export function Header() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {/* Dialog Cambio Password */}
+      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cambia Password</DialogTitle>
+            <DialogDescription>
+              Inserisci la password attuale e la nuova password desiderata.
+            </DialogDescription>
+          </DialogHeader>
+          {passwordSuccess ? (
+            <div className="py-6 text-center">
+              <div className="mx-auto w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <Key className="h-6 w-6 text-green-600" />
+              </div>
+              <p className="text-green-600 font-medium">Password cambiata con successo!</p>
+            </div>
+          ) : (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="current-password">Password Attuale</Label>
+                <Input
+                  id="current-password"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Inserisci password attuale"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-password">Nuova Password</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Inserisci nuova password (min. 6 caratteri)"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password">Conferma Nuova Password</Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Conferma nuova password"
+                />
+              </div>
+              {passwordError && (
+                <p className="text-sm text-red-600">{passwordError}</p>
+              )}
+            </div>
+          )}
+          {!passwordSuccess && (
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowPasswordDialog(false)}>
+                Annulla
+              </Button>
+              <Button onClick={handleChangePassword} disabled={changingPassword}>
+                {changingPassword ? 'Salvataggio...' : 'Cambia Password'}
+              </Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
     </header>
   );
 }

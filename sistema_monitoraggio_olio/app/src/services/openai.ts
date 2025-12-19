@@ -2,11 +2,23 @@ import OpenAI from "openai";
 
 // Using gpt-4-turbo for stability and compatibility
 // gpt-5 was causing empty responses in conformity and text comparison
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY,
-  timeout: 30000, // 30 secondi timeout per chiamata
-  maxRetries: 2,  // Retry automatico
-});
+
+// Lazy initialization to avoid build errors when API key is not set
+let openaiInstance: OpenAI | null = null;
+
+function getOpenAI(): OpenAI {
+  if (!openaiInstance) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY environment variable is not set');
+    }
+    openaiInstance = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+      timeout: 30000, // 30 secondi timeout per chiamata
+      maxRetries: 2,  // Retry automatico
+    });
+  }
+  return openaiInstance;
+}
 
 /**
  * Helper per chiamate OpenAI con timeout personalizzato
@@ -38,7 +50,7 @@ export async function analyzeSentiment(text: string): Promise<{
   
   try {
     const response = await withTimeout(
-      openai.chat.completions.create({
+      getOpenAI().chat.completions.create({
         model: "gpt-4-turbo",  // Cambiato da gpt-5 a gpt-4-turbo
         messages: [
           {
@@ -118,7 +130,7 @@ export async function extractTextFromLabel(base64Image: string): Promise<string>
   
   try {
     const response = await withTimeout(
-      openai.chat.completions.create({
+      getOpenAI().chat.completions.create({
         model: "gpt-4-turbo",  // Cambiato da gpt-5
         messages: [
           {
@@ -170,7 +182,7 @@ export async function analyzeConformity(testoOcr: string): Promise<{
   
   try {
     const response = await withTimeout(
-      openai.chat.completions.create({
+      getOpenAI().chat.completions.create({
         model: "gpt-4-turbo",  // Cambiato da gpt-5
         messages: [
           {
@@ -260,7 +272,7 @@ export async function compareTextWithOfficialLabel(
   
   try {
     const response = await withTimeout(
-      openai.chat.completions.create({
+      getOpenAI().chat.completions.create({
         model: "gpt-4-turbo",  // Cambiato da gpt-5 per stabilità
         messages: [
           {
@@ -368,7 +380,7 @@ export async function compareLabelsVisually(
   
   try {
     const response = await withTimeout(
-      openai.chat.completions.create({
+      getOpenAI().chat.completions.create({
         model: "gpt-4-turbo",  // Cambiato da gpt-5 per stabilità
         messages: [
           {
@@ -435,4 +447,4 @@ Rispondi in JSON con questo formato:
   }
 }
 
-export default openai;
+export { getOpenAI };
