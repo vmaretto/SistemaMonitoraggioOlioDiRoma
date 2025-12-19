@@ -24,29 +24,29 @@ async function main() {
     }
   });
 
-  // Utenti per sistema tracciabilità ispettori
-  const analystPassword = await bcryptjs.hash('analyst123', 10);
-  const analystUser = await prisma.user.upsert({
-    where: { email: 'analyst@consorzio-olio-roma.it' },
+  // Utenti operatori per sistema tracciabilità
+  const operatore1Password = await bcryptjs.hash('operatore123', 10);
+  const operatore1User = await prisma.user.upsert({
+    where: { email: 'operatore1@consorzio-olio-roma.it' },
     update: {},
     create: {
-      email: 'analyst@consorzio-olio-roma.it',
-      name: 'Maria Rossi - Analista',
-      password: analystPassword,
-      role: 'ANALYST',
+      email: 'operatore1@consorzio-olio-roma.it',
+      name: 'Maria Rossi - Operatore',
+      password: operatore1Password,
+      role: 'USER',
       organization: 'Consorzio Olio Roma-Lazio'
     }
   });
 
-  const inspectorPassword = await bcryptjs.hash('inspector123', 10);
-  const inspectorUser = await prisma.user.upsert({
-    where: { email: 'inspector@consorzio-olio-roma.it' },
+  const operatore2Password = await bcryptjs.hash('operatore456', 10);
+  const operatore2User = await prisma.user.upsert({
+    where: { email: 'operatore2@consorzio-olio-roma.it' },
     update: {},
     create: {
-      email: 'inspector@consorzio-olio-roma.it',
-      name: 'Giuseppe Bianchi - Ispettore',
-      password: inspectorPassword,
-      role: 'INSPECTOR',
+      email: 'operatore2@consorzio-olio-roma.it',
+      name: 'Giuseppe Bianchi - Operatore',
+      password: operatore2Password,
+      role: 'USER',
       organization: 'Consorzio Olio Roma-Lazio'
     }
   });
@@ -525,7 +525,7 @@ async function main() {
     data: {
       title: 'Segnalazione uso improprio marchio DOP',
       description: 'Rilevato prodotto con etichetta che rivendica falsamente denominazione DOP Sabina. Richiede analisi approfondita e verifica documenti produttore.',
-      createdById: analystUser.id,
+      createdById: operatore1User.id,
       status: 'IN_LAVORAZIONE'
     }
   });
@@ -535,7 +535,7 @@ async function main() {
       reportId: report1.id,
       type: 'LAVORAZIONE_AVVIATA',
       message: 'Segnalazione ricevuta e assegnata per analisi preliminare',
-      actorId: analystUser.id,
+      actorId: operatore1User.id,
       meta: {
         source: 'Controllo etichette automatico',
         priority: 'media'
@@ -543,12 +543,12 @@ async function main() {
     }
   });
 
-  // Report 2: In controllo 
+  // Report 2: In controllo
   const report2 = await prisma.report.create({
     data: {
       title: 'Contraffazione etichetta IGP Lazio',
       description: 'Prodotto commercializzato con etichetta IGP contraffatta. Elementi grafici copiati ma produttore non autorizzato. Richiesto intervento ispettivo.',
-      createdById: analystUser.id,
+      createdById: operatore1User.id,
       status: 'IN_VERIFICA'
     }
   });
@@ -559,14 +559,14 @@ async function main() {
         reportId: report2.id,
         type: 'LAVORAZIONE_AVVIATA',
         message: 'Segnalazione ricevuta e assegnata per analisi preliminare',
-        actorId: analystUser.id,
+        actorId: operatore1User.id,
         createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) // 5 giorni fa
       },
       {
         reportId: report2.id,
         type: 'AVVIO_CONTROLLO',
         message: 'Analisi completata. Evidenze di contraffazione rilevate. Avviato controllo approfondito.',
-        actorId: analystUser.id,
+        actorId: operatore1User.id,
         meta: {
           findings: ['Logo contraffatto', 'Produttore non autorizzato', 'Codice IGP falso'],
           nextSteps: 'Controllo documentale e possibile sopralluogo'
@@ -581,7 +581,7 @@ async function main() {
     data: {
       title: 'Verifica frantoio produttore DOP Sabina',
       description: 'Controllo conformità processo produttivo e documentazione per rinnovo autorizzazione DOP.',
-      createdById: inspectorUser.id,
+      createdById: operatore2User.id,
       status: 'IN_VERIFICA'
     }
   });
@@ -590,7 +590,7 @@ async function main() {
     data: {
       reportId: report3.id,
       date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 giorni fa
-      inspectorId: inspectorUser.id,
+      inspectorId: operatore2User.id,
       location: 'Frantoio Sabino - Via Roma 123, Rieti',
       minutesText: `
 VERBALE DI ISPEZIONE - Frantoio Sabino
@@ -601,7 +601,7 @@ Luogo: Frantoio Sabino, Via Roma 123, Rieti
 
 VERIFICHE EFFETTUATE:
 - Controllo documentazione produttiva: CONFORME
-- Verifica tracciabilità olive: CONFORME  
+- Verifica tracciabilità olive: CONFORME
 - Controllo processo di spremitura: CONFORME
 - Verifiche etichettatura prodotti finiti: CONFORME
 - Controllo registri di carico/scarico: CONFORME
@@ -624,21 +624,21 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
         reportId: report3.id,
         type: 'LAVORAZIONE_AVVIATA',
         message: 'Richiesta verifica periodica frantoio autorizzato DOP',
-        actorId: inspectorUser.id,
+        actorId: operatore2User.id,
         createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // 7 giorni fa
       },
       {
         reportId: report3.id,
         type: 'AVVIO_CONTROLLO',
         message: 'Documentazione preliminare verificata. Programmato sopralluogo.',
-        actorId: inspectorUser.id,
+        actorId: operatore2User.id,
         createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000) // 4 giorni fa
       },
       {
         reportId: report3.id,
         type: 'SOPRALLUOGO_VERBALE',
         message: 'Completato sopralluogo presso frantoio. Nessuna irregolarità riscontrata.',
-        actorId: inspectorUser.id,
+        actorId: operatore2User.id,
         meta: {
           inspectionId: inspection1.id,
           location: 'Frantoio Sabino - Rieti',
@@ -654,7 +654,7 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
     data: {
       title: 'Vendita olio contraffatto mercato Roma',
       description: 'Rilevata vendita di olio con etichetta DOP Sabina contraffatta presso mercato rionale. Necessario intervento autorità competenti.',
-      createdById: inspectorUser.id,
+      createdById: operatore2User.id,
       status: 'SEGNALATO_AUTORITA'
     }
   });
@@ -662,7 +662,7 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
   const authorityNotice1 = await prisma.authorityNotice.create({
     data: {
       reportId: report4.id,
-      sentBy: inspectorUser.id,
+      sentBy: operatore2User.id,
       authority: 'ICQRF - Ispettorato Centrale Qualità e Frodi',
       protocol: 'ICQRF-2024-001234',
       sentAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 giorno fa
@@ -676,21 +676,21 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
         reportId: report4.id,
         type: 'LAVORAZIONE_AVVIATA',
         message: 'Segnalazione contraffazione ricevuta da cittadino',
-        actorId: analystUser.id,
+        actorId: operatore1User.id,
         createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) // 10 giorni fa
       },
       {
         reportId: report4.id,
         type: 'AVVIO_CONTROLLO',
         message: 'Analisi confermata contraffazione. Avviato controllo approfondito.',
-        actorId: analystUser.id,
+        actorId: operatore1User.id,
         createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000) // 8 giorni fa
       },
       {
         reportId: report4.id,
         type: 'INVIO_A_ENTE',
         message: 'Caso segnalato a ICQRF per intervento delle autorità competenti',
-        actorId: inspectorUser.id,
+        actorId: operatore2User.id,
         meta: {
           authority: 'ICQRF - Ispettorato Centrale Qualità e Frodi',
           protocol: 'ICQRF-2024-001234',
@@ -706,7 +706,7 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
     data: {
       title: 'Chiarimenti su etichettatura olio biologico',
       description: 'Richiesta chiarimenti su conformità etichetta olio biologico con dicitura aggiuntiva non standard.',
-      createdById: analystUser.id,
+      createdById: operatore1User.id,
       status: 'CHIUSO'
     }
   });
@@ -714,7 +714,7 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
   const clarification1 = await prisma.clarificationRequest.create({
     data: {
       reportId: report5.id,
-      requestedBy: analystUser.id,
+      requestedBy: operatore1User.id,
       question: 'È consentito aggiungere sulla etichetta la dicitura "Spremuto a freddo sotto i 27°C" su olio biologico certificato?',
       dueAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 giorni fa
       feedbackAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 giorni fa
@@ -730,14 +730,14 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
         reportId: report5.id,
         type: 'LAVORAZIONE_AVVIATA',
         message: 'Richiesta chiarimenti su conformità etichettatura biologica',
-        actorId: analystUser.id,
+        actorId: operatore1User.id,
         createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000) // 15 giorni fa
       },
       {
         reportId: report5.id,
         type: 'RICHIESTA_CHIARIMENTI',
         message: 'Richiesti chiarimenti su normativa etichettatura temperatura estrazione',
-        actorId: analystUser.id,
+        actorId: operatore1User.id,
         meta: {
           clarificationId: clarification1.id,
           dueDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
@@ -748,7 +748,7 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
         reportId: report5.id,
         type: 'FEEDBACK_ENTE',
         message: 'Ricevuto feedback normativo. Dicitura consentita con documentazione.',
-        actorId: analystUser.id,
+        actorId: operatore1User.id,
         meta: {
           clarificationId: clarification1.id,
           outcome: 'APPROVED_WITH_CONDITIONS'
@@ -759,7 +759,7 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
         reportId: report5.id,
         type: 'CHIUSURA',
         message: 'Caso chiuso. Etichettatura conforme con documentazione aggiuntiva.',
-        actorId: analystUser.id,
+        actorId: operatore1User.id,
         createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) // 3 giorni fa
       }
     ]
@@ -778,7 +778,7 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
         size: 245000,
         url: '/uploads/attachments/foto_etichetta_sospetta.jpg',
         storagePath: 'uploads/attachments/foto_etichetta_sospetta.jpg',
-        uploadedBy: analystUser.id
+        uploadedBy: operatore1User.id
       },
       {
         reportId: report3.id,
@@ -790,7 +790,7 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
         size: 150000,
         url: '/uploads/attachments/verbale_sopralluogo_frantoio.pdf',
         storagePath: 'uploads/attachments/verbale_sopralluogo_frantoio.pdf',
-        uploadedBy: inspectorUser.id
+        uploadedBy: operatore2User.id
       },
       {
         reportId: report4.id,
@@ -802,7 +802,7 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
         size: 180000,
         url: '/uploads/attachments/segnalazione_icqrf.pdf',
         storagePath: 'uploads/attachments/segnalazione_icqrf.pdf',
-        uploadedBy: inspectorUser.id
+        uploadedBy: operatore2User.id
       }
     ]
   });
@@ -810,8 +810,8 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
   console.log('✅ Seed completato con successo!');
   console.log(`
 📊 RIEPILOGO DATI CREATI:
-- 👤 Utenti: 4 (admin, analyst, inspector, test)
-- 🔍 Keywords: 10 
+- 👤 Utenti: 4 (1 admin, 2 operatori, 1 test)
+- 🔍 Keywords: 10
 - 🏷️ Etichette ufficiali: 12
 - 📱 Contenuti monitorati: ~45 (ultimi 30 giorni)
 - ✅ Verifiche etichette: 3
@@ -827,8 +827,8 @@ Il frantoio risulta pienamente conforme ai requisiti per il mantenimento della c
 
 🔑 CREDENZIALI TEST:
 - Admin: admin@consorzio-olio-roma.it / admin123
-- Analista: analyst@consorzio-olio-roma.it / analyst123
-- Ispettore: inspector@consorzio-olio-roma.it / inspector123
+- Operatore 1: operatore1@consorzio-olio-roma.it / operatore123
+- Operatore 2: operatore2@consorzio-olio-roma.it / operatore456
 - Test: john@doe.com / johndoe123
 
 📋 STATI REPORT DEMO:
