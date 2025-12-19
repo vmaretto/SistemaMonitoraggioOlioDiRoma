@@ -6,23 +6,25 @@ import { OverviewCharts } from '@/components/dashboard/overview-charts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  TrendingUp, 
-  MessageSquare, 
-  AlertTriangle, 
+import {
+  TrendingUp,
+  MessageSquare,
   Shield,
   Clock,
   CheckCircle,
-  XCircle,
   Eye,
-  ArrowRight
+  ArrowRight,
+  FileText,
+  ClipboardList
 } from 'lucide-react';
 import Link from 'next/link';
+import { formatDistanceToNow } from 'date-fns';
+import { it } from 'date-fns/locale';
 
 async function getDashboardStats() {
   try {
     const { prisma } = await import('@/lib/db');
-    
+
     // Calcola le statistiche principali
     const now = new Date();
     const last7Days = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
@@ -30,7 +32,7 @@ async function getDashboardStats() {
 
     // Total contenuti monitorati
     const totalContenuti = await prisma.contenutiMonitorati.count();
-    
+
     // Contenuti ultimi 7 giorni
     const contenutiRecenti = await prisma.contenutiMonitorati.count({
       where: {
@@ -65,21 +67,6 @@ async function getDashboardStats() {
       }
     });
 
-    // Alert attivi
-    const alertAttivi = await prisma.alert.count({
-      where: {
-        isRisolto: false
-      }
-    });
-
-    // Alert critici
-    const alertCritici = await prisma.alert.count({
-      where: {
-        isRisolto: false,
-        priorita: 'critico'
-      }
-    });
-
     // Verifiche etichette pending
     const verifichePending = await prisma.verificheEtichette.count({
       where: {
@@ -87,12 +74,23 @@ async function getDashboardStats() {
       }
     });
 
+    // Verifiche totali e conformi per calcolo tasso conformità
+    const verificheTotali = await prisma.verificheEtichette.count();
+    const verificheConformi = await prisma.verificheEtichette.count({
+      where: {
+        risultatoMatching: 'conforme'
+      }
+    });
+    const tassoConformita = verificheTotali > 0
+      ? Math.round((verificheConformi / verificheTotali) * 100)
+      : 0;
+
     // Trend giornaliero ultimi 7 giorni
     const trendGiornaliero = [];
     for (let i = 6; i >= 0; i--) {
       const date = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000));
       const nextDate = new Date(date.getTime() + (24 * 60 * 60 * 1000));
-      
+
       const count = await prisma.contenutiMonitorati.count({
         where: {
           dataPost: {
@@ -121,40 +119,95 @@ async function getDashboardStats() {
       });
     }
 
+    // Keyword performance (dati reali)
+    const allContenuti = await prisma.contenutiMonitorati.findMany({
+      where: {
+        dataPost: {
+          gte: last30Days
+        }
+      },
+      select: {
+        keywords: true,
+        sentimentScore: true
+      }
+    });
+
+    const keywordStats = new Map<string, { menzioni: number; totalSentiment: number }>();
+    allContenuti.forEach(c => {
+      c.keywords.forEach(kw => {
+        const existing = keywordStats.get(kw) || { menzioni: 0, totalSentiment: 0 };
+        existing.menzioni++;
+        existing.totalSentiment += c.sentimentScore;
+        keywordStats.set(kw, existing);
+      });
+    });
+
+    const keywordPerformance = Array.from(keywordStats.entries())
+      .map(([keyword, stats]) => ({
+        keyword,
+        menzioni: stats.menzioni,
+        sentiment: stats.menzioni > 0 ? stats.totalSentiment / stats.menzioni : 0
+      }))
+      .sort((a, b) => b.menzioni - a.menzioni)
+      .slice(0, 5);
+
+    // Attività recenti (ultimi action log dai report)
+    const recentActivities = await prisma.actionLog.findMany({
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        report: {
+          select: { title: true }
+        }
+      }
+    });
+
+    // Ottieni i nomi degli utenti per gli actorId
+    const actorIds = [...new Set(recentActivities.map(a => a.actorId))];
+    const actors = await prisma.user.findMany({
+      where: { id: { in: actorIds } },
+      select: { id: true, name: true }
+    });
+    const actorMap = new Map(actors.map(a => [a.id, a.name]));
+
     return {
       overview: {
         totalContenuti,
         contenutiRecenti,
         sentimentMedio: sentimentStats._avg?.sentimentScore || 0,
-        alertAttivi,
-        alertCritici,
-        verifichePending
+        verifichePending,
+        tassoConformita
       },
       sentimentDistribution: sentimentDistribution.map(item => ({
         sentiment: item.sentiment,
         count: item._count.sentiment
       })),
-      trendGiornaliero
+      trendGiornaliero,
+      keywordPerformance,
+      recentActivities: recentActivities.map(a => ({
+        id: a.id,
+        type: a.type,
+        message: a.message,
+        reportTitle: a.report?.title || 'Report',
+        actorName: actorMap.get(a.actorId) || 'Sistema',
+        createdAt: a.createdAt
+      }))
     };
 
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
-    // Ritorna dati mock in caso di errore
     return {
       overview: {
-        totalContenuti: 240,
-        contenutiRecenti: 18,
-        sentimentMedio: 0.25,
-        alertAttivi: 3,
-        alertCritici: 1,
-        verifichePending: 2
+        totalContenuti: 0,
+        contenutiRecenti: 0,
+        sentimentMedio: 0,
+        verifichePending: 0,
+        tassoConformita: 0
       },
-      sentimentDistribution: [
-        { sentiment: 'positivo', count: 120 },
-        { sentiment: 'neutro', count: 85 },
-        { sentiment: 'negativo', count: 35 }
-      ],
-      trendGiornaliero: []
+      sentimentDistribution: [],
+      trendGiornaliero: [],
+      keywordPerformance: [],
+      recentActivities: []
     };
   }
 }
@@ -169,16 +222,44 @@ export default async function DashboardPage() {
     return 'warning';
   };
 
-  const getSentimentChange = (score: number) => {
-    if (score > 0.2) return '+12%';
-    if (score < -0.2) return '-8%';
-    return '+3%';
-  };
-
   const getSentimentChangeType = (score: number): 'positive' | 'negative' | 'neutral' => {
     if (score > 0.2) return 'positive';
     if (score < -0.2) return 'negative';
     return 'neutral';
+  };
+
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'LAVORAZIONE_AVVIATA':
+        return <FileText className="h-4 w-4 text-blue-600" />;
+      case 'AVVIO_CONTROLLO':
+        return <Eye className="h-4 w-4 text-orange-600" />;
+      case 'SOPRALLUOGO_VERBALE':
+        return <ClipboardList className="h-4 w-4 text-purple-600" />;
+      case 'INVIO_A_ENTE':
+        return <Shield className="h-4 w-4 text-red-600" />;
+      case 'CHIUSURA':
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      default:
+        return <FileText className="h-4 w-4 text-gray-600" />;
+    }
+  };
+
+  const getActivityBg = (type: string) => {
+    switch (type) {
+      case 'LAVORAZIONE_AVVIATA':
+        return 'bg-blue-50 border-blue-200';
+      case 'AVVIO_CONTROLLO':
+        return 'bg-orange-50 border-orange-200';
+      case 'SOPRALLUOGO_VERBALE':
+        return 'bg-purple-50 border-purple-200';
+      case 'INVIO_A_ENTE':
+        return 'bg-red-50 border-red-200';
+      case 'CHIUSURA':
+        return 'bg-green-50 border-green-200';
+      default:
+        return 'bg-gray-50 border-gray-200';
+    }
   };
 
   return (
@@ -191,7 +272,7 @@ export default async function DashboardPage() {
               Benvenuto, {session?.user?.name}
             </h1>
             <p className="text-gray-600">
-              Sistema di monitoraggio reputazionale per l'olio extravergine Roma-Lazio. 
+              Sistema di monitoraggio reputazionale per l'olio extravergine Roma-Lazio.
               Tieni sotto controllo la reputazione online e la conformità delle etichette.
             </p>
           </div>
@@ -205,49 +286,39 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatsCard
           title="Contenuti Totali"
-          value={stats?.overview?.totalContenuti || 240}
-          change="+12 oggi"
-          changeType="positive"
+          value={stats?.overview?.totalContenuti || 0}
+          change="Monitorati"
+          changeType="neutral"
           icon={<MessageSquare className="h-4 w-4" />}
           description="Contenuti monitorati"
         />
-        
+
         <StatsCard
           title="Sentiment Medio"
-          value={(stats?.overview?.sentimentMedio || 0.25).toFixed(2)}
-          change={getSentimentChange(stats?.overview?.sentimentMedio || 0.25)}
-          changeType={getSentimentChangeType(stats?.overview?.sentimentMedio || 0.25)}
+          value={(stats?.overview?.sentimentMedio || 0).toFixed(2)}
+          change="Ultimi 30 giorni"
+          changeType={getSentimentChangeType(stats?.overview?.sentimentMedio || 0)}
           icon={<TrendingUp className="h-4 w-4" />}
           description="Punteggio da -1 a +1"
-          variant={getSentimentVariant(stats?.overview?.sentimentMedio || 0.25)}
+          variant={getSentimentVariant(stats?.overview?.sentimentMedio || 0)}
         />
-        
-        <StatsCard
-          title="Alert Attivi"
-          value={stats?.overview?.alertAttivi || 3}
-          change={stats?.overview?.alertCritici ? `${stats.overview.alertCritici} critici` : '1 critico'}
-          changeType="negative"
-          icon={<AlertTriangle className="h-4 w-4" />}
-          description="Richiedono attenzione"
-          variant="warning"
-        />
-        
+
         <StatsCard
           title="Verifiche Pending"
-          value={stats?.overview?.verifichePending || 2}
+          value={stats?.overview?.verifichePending || 0}
           change="In attesa"
           changeType="neutral"
           icon={<Shield className="h-4 w-4" />}
           description="Etichette da verificare"
-          variant="warning"
+          variant={stats?.overview?.verifichePending ? 'warning' : 'default'}
         />
 
         <StatsCard
           title="Contenuti Recenti"
-          value={stats?.overview?.contenutiRecenti || 18}
+          value={stats?.overview?.contenutiRecenti || 0}
           change="Ultimi 7 giorni"
           changeType="positive"
           icon={<Clock className="h-4 w-4" />}
@@ -256,71 +327,74 @@ export default async function DashboardPage() {
 
         <StatsCard
           title="Tasso Conformità"
-          value="87%"
-          change="+5%"
+          value={`${stats?.overview?.tassoConformita || 0}%`}
+          change="Etichette verificate"
           changeType="positive"
           icon={<CheckCircle className="h-4 w-4" />}
           description="Etichette conformi"
-          variant="success"
+          variant={stats?.overview?.tassoConformita && stats.overview.tassoConformita > 70 ? 'success' : 'warning'}
         />
       </div>
 
       {/* Charts Section */}
-      <OverviewCharts 
+      <OverviewCharts
         trendData={stats?.trendGiornaliero}
         sentimentDistribution={stats?.sentimentDistribution}
+        keywordPerformance={stats?.keywordPerformance}
       />
 
       {/* Quick Actions & Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Alert Recenti */}
+        {/* Attività Recenti */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
-              <AlertTriangle className="h-5 w-5 text-orange-600" />
-              <span>Alert Recenti</span>
+              <ClipboardList className="h-5 w-5 text-blue-600" />
+              <span>Attività Recenti</span>
             </CardTitle>
             <CardDescription>
-              Situazioni che richiedono attenzione immediata
+              Ultime attività sui report di tracciabilità
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex items-center space-x-3 p-3 bg-red-50 rounded-lg border border-red-200">
-              <XCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-red-900">Picco sentiment negativo</p>
-                <p className="text-xs text-red-700">Aumento del 40% delle recensioni negative</p>
+            {stats?.recentActivities && stats.recentActivities.length > 0 ? (
+              <>
+                {stats.recentActivities.map((activity) => (
+                  <div
+                    key={activity.id}
+                    className={`flex items-center space-x-3 p-3 rounded-lg border ${getActivityBg(activity.type)}`}
+                  >
+                    {getActivityIcon(activity.type)}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {activity.reportTitle}
+                      </p>
+                      <p className="text-xs text-gray-600 truncate">{activity.message}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-xs text-gray-500">
+                        {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true, locale: it })}
+                      </p>
+                      <p className="text-xs text-gray-400">{activity.actorName}</p>
+                    </div>
+                  </div>
+                ))}
+                <div className="pt-3 border-t">
+                  <Link href="/dashboard/reports">
+                    <Button variant="outline" size="sm" className="w-full">
+                      <Eye className="h-4 w-4 mr-2" />
+                      Visualizza tutti i report
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </Button>
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-6 text-gray-500">
+                <ClipboardList className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                <p>Nessuna attività recente</p>
               </div>
-              <Badge variant="destructive">Critico</Badge>
-            </div>
-            
-            <div className="flex items-center space-x-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-              <Shield className="h-4 w-4 text-yellow-600 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-yellow-900">Etichetta sospetta</p>
-                <p className="text-xs text-yellow-700">Uso improprio di simboli romani</p>
-              </div>
-              <Badge variant="outline">Medio</Badge>
-            </div>
-
-            <div className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg border border-green-200">
-              <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-green-900">Trend positivo DOP Sabina</p>
-                <p className="text-xs text-green-700">+25% menzioni positive</p>
-              </div>
-              <Badge variant="outline">Risolto</Badge>
-            </div>
-
-            <div className="pt-3 border-t">
-              <Link href="/dashboard/alert">
-                <Button variant="outline" size="sm" className="w-full">
-                  <Eye className="h-4 w-4 mr-2" />
-                  Visualizza tutti gli alert
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              </Link>
-            </div>
+            )}
           </CardContent>
         </Card>
 
@@ -336,7 +410,7 @@ export default async function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Link href="/dashboard/etichette/verify">
+            <Link href="/dashboard/verifiche">
               <Button className="w-full justify-between bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700">
                 <span className="flex items-center">
                   <Shield className="h-4 w-4 mr-2" />
@@ -366,11 +440,11 @@ export default async function DashboardPage() {
               </Button>
             </Link>
 
-            <Link href="/dashboard/report">
+            <Link href="/dashboard/reports">
               <Button variant="outline" className="w-full justify-between">
                 <span className="flex items-center">
-                  <Eye className="h-4 w-4 mr-2" />
-                  Esporta Report
+                  <ClipboardList className="h-4 w-4 mr-2" />
+                  Tracciabilità Ispettori
                 </span>
                 <ArrowRight className="h-4 w-4" />
               </Button>
