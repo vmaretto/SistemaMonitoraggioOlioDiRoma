@@ -51,10 +51,8 @@ model User {
 }
 
 enum UserRole {
-  USER
-  ANALYST
-  INSPECTOR
-  ADMIN
+  USER   // Operatore
+  ADMIN  // Amministratore
 }
 
 model VerificationToken {

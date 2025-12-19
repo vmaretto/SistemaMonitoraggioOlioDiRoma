@@ -91,12 +91,12 @@ export async function PATCH(
       updateData.organization = organization;
     }
 
-    // Aggiorna ruolo se fornito
+    // Aggiorna ruolo se fornito (solo Operatore e Amministratore)
     if (role) {
-      const validRoles = ['USER', 'ANALYST', 'INSPECTOR', 'ADMIN'];
+      const validRoles = ['USER', 'ADMIN'];
       const newRole = role.toUpperCase();
       if (!validRoles.includes(newRole)) {
-        return NextResponse.json({ error: 'Ruolo non valido' }, { status: 400 });
+        return NextResponse.json({ error: 'Ruolo non valido. Valori ammessi: USER (Operatore), ADMIN (Amministratore)' }, { status: 400 });
       }
       updateData.role = newRole;
     }

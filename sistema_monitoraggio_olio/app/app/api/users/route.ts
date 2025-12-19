@@ -80,11 +80,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'La password deve essere di almeno 6 caratteri' }, { status: 400 });
     }
 
-    // Verifica ruolo valido
-    const validRoles = ['USER', 'ANALYST', 'INSPECTOR', 'ADMIN'];
+    // Verifica ruolo valido (solo Operatore e Amministratore)
+    const validRoles = ['USER', 'ADMIN'];
     const userRole = role?.toUpperCase() || 'USER';
     if (!validRoles.includes(userRole)) {
-      return NextResponse.json({ error: 'Ruolo non valido. Valori ammessi: USER, ANALYST, INSPECTOR, ADMIN' }, { status: 400 });
+      return NextResponse.json({ error: 'Ruolo non valido. Valori ammessi: USER (Operatore), ADMIN (Amministratore)' }, { status: 400 });
     }
 
     // Verifica se l'email esiste già

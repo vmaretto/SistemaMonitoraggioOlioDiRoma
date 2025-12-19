@@ -344,8 +344,6 @@ export default function ConfigurazioniPage() {
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'ADMIN': return 'bg-red-100 text-red-800';
-      case 'INSPECTOR': return 'bg-purple-100 text-purple-800';
-      case 'ANALYST': return 'bg-blue-100 text-blue-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -353,8 +351,6 @@ export default function ConfigurazioniPage() {
   const getRoleLabel = (role: string) => {
     switch (role) {
       case 'ADMIN': return 'Amministratore';
-      case 'INSPECTOR': return 'Ispettore';
-      case 'ANALYST': return 'Analista';
       case 'USER': return 'Operatore';
       default: return role;
     }
@@ -605,8 +601,6 @@ export default function ConfigurazioniPage() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="USER">Operatore</SelectItem>
-                              <SelectItem value="ANALYST">Analista</SelectItem>
-                              <SelectItem value="INSPECTOR">Ispettore</SelectItem>
                               <SelectItem value="ADMIN">Amministratore</SelectItem>
                             </SelectContent>
                           </Select>
@@ -738,8 +732,6 @@ export default function ConfigurazioniPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="USER">Operatore</SelectItem>
-                        <SelectItem value="ANALYST">Analista</SelectItem>
-                        <SelectItem value="INSPECTOR">Ispettore</SelectItem>
                         <SelectItem value="ADMIN">Amministratore</SelectItem>
                       </SelectContent>
                     </Select>
