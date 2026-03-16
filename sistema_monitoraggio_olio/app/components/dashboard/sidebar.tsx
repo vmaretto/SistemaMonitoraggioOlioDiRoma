@@ -2,6 +2,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -99,14 +100,18 @@ export function Sidebar() {
       <div className="space-y-4 py-4">
         <div className="px-6 py-2">
           <Link href="/dashboard" className="flex items-center space-x-3">
-            <div className="h-10 w-10 bg-gradient-to-r from-green-600 to-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">🫒</span>
-            </div>
+            <Image
+              src="/logo-olio-roma.jpg"
+              alt="Olio di Roma IGP"
+              width={48}
+              height={48}
+              className="rounded-full"
+            />
             <div>
               <h2 className="text-lg font-bold text-gray-900">
                 Monitoraggio Olio
               </h2>
-              <p className="text-xs text-gray-500">Roma-Lazio</p>
+              <p className="text-xs text-gray-500">Roma IGP</p>
             </div>
           </Link>
         </div>

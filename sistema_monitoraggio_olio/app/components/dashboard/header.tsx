@@ -2,6 +2,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import {
@@ -106,12 +107,19 @@ export function Header() {
   return (
     <header className="h-16 border-b border-gray-200 bg-white px-6 flex items-center justify-between sticky top-0 z-50">
       <div className="flex items-center space-x-4">
+        <Image
+          src="/logo-olio-roma.jpg"
+          alt="Olio di Roma IGP"
+          width={40}
+          height={40}
+          className="rounded-full"
+        />
         <div>
           <h1 className="text-xl font-semibold text-gray-900">
-            Sistema Monitoraggio Reputazionale
+            Monitoraggio OLIO DI ROMA IGP
           </h1>
           <p className="text-sm text-gray-500">
-            Consorzio per la tutela dell'Olio Extravergine Roma-Lazio
+            Consorzio di Tutela dell'OLIO DI ROMA IGP
           </p>
         </div>
       </div>
